@@ -6,6 +6,7 @@ from gym import envs
 from stable_baselines3 import PPO
 from torch import nn
 import torch
+from torch.optim import Adam
 from torchvision import transforms
 import numpy as np
 import cv2 as cv
@@ -85,9 +86,6 @@ def atari_fetch_input(input_buffer):
 
 
 if __name__ == '__main__':
-
-    tmp_input = torch.zeros(size=(1, 4, 84, 84))
-    out = DQN()(tmp_input)
     # # 1. It renders instance for 500 timesteps, perform random actions
     # env = gym.make('Pong-v4')
     # env.reset()
@@ -119,9 +117,12 @@ if __name__ == '__main__':
     NUM_EPISODES = 1000
     current_episode = 0
     TARGET_DQN_UPDATE_FREQ = 10
+    discount_factor = 0.99
+    # todo: add epsilon annealing range
 
-    dqn_current = DQN(number_of_actions=number_of_actions, input_size=ATARI_INPUT[0] * ATARI_INPUT[1])
-    dqn_target = DQN(number_of_actions=number_of_actions, input_size=ATARI_INPUT[0] * ATARI_INPUT[1])
+    dqn_current = DQN(number_of_actions=number_of_actions)
+    dqn_target = DQN(number_of_actions=number_of_actions)
+    optimizer = Adam(dqn_current.parameters())  # todo: RMSProp
 
     replay_buffer = ReplayBuffer()
     num_sticky_actions = 4
@@ -132,6 +133,7 @@ if __name__ == '__main__':
         end_of_episode = False
         while not end_of_episode:
             current_state = replay_buffer.fetch_last()
+            # todo: add epsilon greedy
             action = dqn_current(current_state) if len(replay_buffer) > 0 else env.action_space.sample()
 
             tmp_input_buffer = []
@@ -151,7 +153,13 @@ if __name__ == '__main__':
             replay_buffer.append(tmp_input_buffer)
 
             # todo: add update function
+            state, action, reward, next_state = replay_buffer.pop()
+            q_target = reward + discount_factor * max(dqn_target(next_state))
+            loss = nn.MSELoss()(dqn_current(state)[action], q_target)
 
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         if current_episode % TARGET_DQN_UPDATE_FREQ:
             dqn_target = copy.deepcopy(dqn_current)
