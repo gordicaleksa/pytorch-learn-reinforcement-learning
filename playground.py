@@ -43,29 +43,31 @@ class ReplayBuffer:
         return state
 
     def update_last(self):
-        state = 
+        state = 1  # dummy
 
     def __len__(self):
         return len(self.buffer)
 
 
 class DQN(nn.Module):
-    def __init__(self, number_of_actions, input_size):
+    def __init__(self, number_of_actions=3):
         super().__init__()
-        num_of_neurons_per_layer = [500, 100, 23]
-        self.fc1 = nn.Linear(input_size, num_of_neurons_per_layer[0])
-        self.fc2 = nn.Linear(num_of_neurons_per_layer[0], num_of_neurons_per_layer[1])
-        self.fc3 = nn.Linear(num_of_neurons_per_layer[1], num_of_neurons_per_layer[2])
-        self.out = nn.Linear(num_of_neurons_per_layer[2], number_of_actions)
+        num_of_filters_per_layer = [4, 32, 64, 64]
+        self.conv1 = nn.Conv2d(num_of_filters_per_layer[0], num_of_filters_per_layer[1], kernel_size=(8, 8), stride=(4, 4))
+        self.conv2 = nn.Conv2d(num_of_filters_per_layer[1], num_of_filters_per_layer[2], kernel_size=(4, 4), stride=(2, 2))
+        self.conv3 = nn.Conv2d(num_of_filters_per_layer[2], num_of_filters_per_layer[3], kernel_size=(3, 3))
+        self.fc1 = nn.Linear(num_of_filters_per_layer[3] * 7 * 7, 512)  # todo: make the padding same?
+        self.fc2 = nn.Linear(512, number_of_actions)
 
-        self.softmax = nn.Softmax(dim=-1)
         self.relu = nn.ReLU()
 
     def forward(self, input):
-        x = self.relu(self.fc1(input))
+        x = self.relu(self.conv1(input))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
+        x = torch.flatten(x, start_dim=1)  # flatten from (N,1,H,W) into (N, HxW)
+        x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.relu(self.fc3(x))
-        x = self.softmax(self.out(x))
         return x
 
 
@@ -83,6 +85,9 @@ def atari_fetch_input(input_buffer):
 
 
 if __name__ == '__main__':
+
+    tmp_input = torch.zeros(size=(1, 4, 84, 84))
+    out = DQN()(tmp_input)
     # # 1. It renders instance for 500 timesteps, perform random actions
     # env = gym.make('Pong-v4')
     # env.reset()
