@@ -11,7 +11,15 @@ from torchvision import transforms
 import numpy as np
 import cv2 as cv
 
-# todo: set random seeds
+# todo: set random seeds (python, np, torch, gym, ?)
+# env.action_space.seed(RANDOM_SEED), env.seed(RANDOM_SEED) <- both are needed?
+# todo: maybe add a minimal version and a fully blown version with all of the nitty-gritty details
+# todo: test the replay buffer, visualize images from the buffer
+# todo: test Adam vs RMSProp
+# todo: checkin trained DQN
+# todo: leverage gym's wrappers instead of writing the code for e.g. scaling rewards inside the loop
+# todo: try out gym's Monitor and env.ale.lives will that make sense for every env?
+# todo: is gradient clipping in the param domain equivalent to clipping of the MSE loss?
 
 # todo: Add DQN
 # todo: Add vanilla PG
@@ -70,6 +78,8 @@ class DQN(nn.Module):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         return x
+
+    # todo: pass input shape and calculate self.fc1 input number of features automatically
 
 
 def atari_preprocess(img, current_state, tmp_input_buffer):
