@@ -20,6 +20,9 @@ import cv2 as cv
 # todo: leverage gym's wrappers instead of writing the code for e.g. scaling rewards inside the loop
 # todo: try out gym's Monitor and env.ale.lives will that make sense for every env?
 # todo: is gradient clipping in the param domain equivalent to clipping of the MSE loss?
+# todo: log episode lengths, value function estimates, min/max/mean/std cumulative rewards, epsilon
+# todo: I'm not sure how much training on Atari will take (wallclock time) for 200M frames, try a simpler env initially
+# todo: reach OpenAI baseline performance
 
 # todo: Add DQN
 # todo: Add vanilla PG
@@ -76,10 +79,10 @@ class DQN(nn.Module):
         x = self.relu(self.conv3(x))
         x = torch.flatten(x, start_dim=1)  # flatten from (N,1,H,W) into (N, HxW)
         x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
+        x = self.relu(self.fc2(x))  # todo: do I need ReLU here?
         return x
 
-    # todo: pass input shape and calculate self.fc1 input number of features automatically
+    # todo: pass input shape and calculate self.fc1 input number of features automatically or via forward pass
 
 
 def atari_preprocess(img, current_state, tmp_input_buffer):
