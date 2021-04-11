@@ -3,13 +3,14 @@ import copy
 
 import gym
 from gym import envs
-from stable_baselines3 import PPO
+from stable_baselines3.dqn import DQN
 from torch import nn
 import torch
 from torch.optim import Adam
 from torchvision import transforms
 import numpy as np
 import cv2 as cv
+from stable_baselines3.common.atari_wrappers import AtariWrapper
 
 # todo: set random seeds (python, np, torch, gym, ?)
 # env.action_space.seed(RANDOM_SEED), env.seed(RANDOM_SEED) <- both are needed?
@@ -28,7 +29,7 @@ import cv2 as cv
 # todo: Add vanilla PG
 # todo: Add PPO
 
-# todo: discrete envs: CartPole-v1, Pong, Breakout
+# todo: make it work for discrete envs: CartPole-v1, Pong, Breakout
 # todo: continuous envs: Acrobot, etc.
 
 
@@ -61,14 +62,21 @@ class ReplayBuffer:
         return len(self.buffer)
 
 
-class DQN(nn.Module):
+class QNetwork(nn.Module):
     def __init__(self, number_of_actions=3):
         super().__init__()
-        num_of_filters_per_layer = [4, 32, 64, 64]
-        self.conv1 = nn.Conv2d(num_of_filters_per_layer[0], num_of_filters_per_layer[1], kernel_size=(8, 8), stride=(4, 4))
-        self.conv2 = nn.Conv2d(num_of_filters_per_layer[1], num_of_filters_per_layer[2], kernel_size=(4, 4), stride=(2, 2))
-        self.conv3 = nn.Conv2d(num_of_filters_per_layer[2], num_of_filters_per_layer[3], kernel_size=(3, 3))
-        self.fc1 = nn.Linear(num_of_filters_per_layer[3] * 7 * 7, 512)  # todo: make the padding same?
+        num_of_filters = [4, 32, 64, 64]
+        kernel_sizes = [8, 4, 3]
+        strides = [4, 2, 1]
+        self.cnn = nn.Sequential(
+            *[(nn.Conv2d(num_of_filters[i], num_of_filters[i+1], kernel_size=kernel_sizes[i], stride=strides[i]), nn.ReLU()) for i in range(len(strides))]
+        )
+
+        # Compute shape by doing one forward pass
+        with torch.no_grad():
+            n_flatten = self.cnn(torch.as_tensor(observation_space.sample()[None]).float()).shape[1]
+
+        self.fc1 = nn.Linear(num_of_filters[3] * 7 * 7, 512)  # todo: make the padding same?
         self.fc2 = nn.Linear(512, number_of_actions)
 
         self.relu = nn.ReLU()
@@ -79,7 +87,7 @@ class DQN(nn.Module):
         x = self.relu(self.conv3(x))
         x = torch.flatten(x, start_dim=1)  # flatten from (N,1,H,W) into (N, HxW)
         x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))  # todo: do I need ReLU here?
+        x = self.fc2(x)
         return x
 
     # todo: pass input shape and calculate self.fc1 input number of features automatically or via forward pass
@@ -110,10 +118,11 @@ if __name__ == '__main__':
     # for el in envs.registry.all():
     #     print(el)
 
-    # env = gym.make("CartPole-v1")
-    #
-    # model = PPO("MlpPolicy", env, verbose=1)
-    # model.learn(total_timesteps=10000)
+    env = AtariWrapper(gym.make("Pong-v4"))
+
+    model = DQN("CnnPolicy", env, verbose=1)
+    model.learn(total_timesteps=10000)
+
     #
     # obs = env.reset()
     # for i in range(1000):
@@ -126,6 +135,9 @@ if __name__ == '__main__':
     # env.close()
 
     env = gym.make("Pong-v4")
+    obs_space = env.observation_space.sample() # [None]
+    tmp = obs_space[None]
+
     number_of_actions = env.action_space.n
     NUM_EPISODES = 1000
     current_episode = 0
