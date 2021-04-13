@@ -71,6 +71,7 @@ class ReplayBuffer:
         rewards_batch = self.rewards[random_unique_indices]
         dones_batch = self.dones[random_unique_indices]
 
+        # todo: prepare data -> tensor, cuda, etc.
         return frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch
 
     def fetch_last_experience(self):
@@ -100,6 +101,7 @@ class ReplayBuffer:
 
         num_of_missing_frames = self.num_previous_frames_to_fetch - (end_index + 1 - start_index)
 
+        # todo: normalize frames: uint8 -> float
         if start_index < 0 or num_of_missing_frames > 0:  # start_index:end_index won't work if start_index < 0
             # If there are missing frames, because of the above handled edge-cases, fill them with black frames as per
             # original DeepMind Lua imp: https://github.com/deepmind/dqn/blob/master/dqn/TransitionTable.lua#L171
