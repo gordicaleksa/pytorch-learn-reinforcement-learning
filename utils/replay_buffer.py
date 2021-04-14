@@ -101,7 +101,7 @@ class ReplayBuffer:
 
         num_of_missing_frames = self.num_previous_frames_to_fetch - (end_index + 1 - start_index)
 
-        # todo: normalize frames: uint8 -> float
+        # todo: normalize frames: uint8 -> float, cuda
         if start_index < 0 or num_of_missing_frames > 0:  # start_index:end_index won't work if start_index < 0
             # If there are missing frames, because of the above handled edge-cases, fill them with black frames as per
             # original DeepMind Lua imp: https://github.com/deepmind/dqn/blob/master/dqn/TransitionTable.lua#L171
@@ -161,7 +161,7 @@ class ReplayBuffer:
 
 # Basic replay buffer testing
 if __name__ == '__main__':
-    size = 800000
+    size = 500000
     num_of_collection_steps = 10000
     experience_batch_size = 32
 
@@ -182,6 +182,8 @@ if __name__ == '__main__':
         frame, reward, done, info = env.step(random_action)
         index = replay_buffer.store_frame(frame)
         replay_buffer.store_effect(index, random_action, reward, done)
+        if done:
+            env.reset()
 
     # Step 2: Fetch experiences from the buffer
     frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch = replay_buffer.fetch_random_experiences(experience_batch_size)

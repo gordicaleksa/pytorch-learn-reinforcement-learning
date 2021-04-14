@@ -60,6 +60,9 @@ class DQN(nn.Module):
     def forward(self, observation):
         return self.fc_part(self.cnn_part(observation))
 
+    def act(self, observation):
+
+
     # The original CNN didn't use any padding: https://github.com/deepmind/dqn/blob/master/dqn/convnet.lua
     # not that it matters - it would probably work either way feel free to experiment with the architecture.
     def cnn_block(self, num_in_filters, num_out_filters, kernel_size, stride):
