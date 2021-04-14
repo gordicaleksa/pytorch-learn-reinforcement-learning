@@ -3,11 +3,13 @@ import random
 
 import numpy as np
 import psutil
+import torch
 
 
 from utils import get_atari_wrapper
 
 
+# todo: decide on naming - observations or experience
 class ReplayBuffer:
     """
     Since stable baselines 3 doesn't currently support a smart replay buffer (more concretely the "lazy frames" feature)
@@ -67,11 +69,11 @@ class ReplayBuffer:
 
         frames_batch = np.concatenate([self._fetch_experience(i)[np.newaxis, :] for i in random_unique_indices], 0)
         next_frames_batch = np.concatenate([self._fetch_experience(i + 1)[np.newaxis, :] for i in random_unique_indices], 0)
+        # todo: prepare data -> tensor, cuda, etc.
         actions_batch = self.actions[random_unique_indices]
         rewards_batch = self.rewards[random_unique_indices]
         dones_batch = self.dones[random_unique_indices]
 
-        # todo: prepare data -> tensor, cuda, etc.
         return frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch
 
     def fetch_last_experience(self):
@@ -101,7 +103,6 @@ class ReplayBuffer:
 
         num_of_missing_frames = self.num_previous_frames_to_fetch - (end_index + 1 - start_index)
 
-        # todo: normalize frames: uint8 -> float, cuda
         if start_index < 0 or num_of_missing_frames > 0:  # start_index:end_index won't work if start_index < 0
             # If there are missing frames, because of the above handled edge-cases, fill them with black frames as per
             # original DeepMind Lua imp: https://github.com/deepmind/dqn/blob/master/dqn/TransitionTable.lua#L171
@@ -110,10 +111,14 @@ class ReplayBuffer:
             for index in range(start_index, end_index + 1):
                 experience.append(self.frames[index % self.max_buffer_size])
 
-            return np.concatenate(experience, 0)
+            return self._postprocess_experience(np.concatenate(experience, 0))
         else:
             # reshape from (PF, C, H, W) to (PF*C, H, W) where PF - number of Past Frames, 4 for Atari
-            return self.frames[start_index:end_index + 1].reshape(-1, self.frame_height, self.frame_width)
+            return self._postprocess_experience(self.frames[start_index:end_index + 1].reshape(-1, self.frame_height, self.frame_width))
+
+    def _postprocess_experience(self, observation):
+        # shape: (PF*C, H, W) -> (1, PF*C, H, W), numpy -> tensor, move to device, uint8 -> float, [0,255] -> [0, 1]
+        return torch.from_numpy(observation.unsqueeze(0)).to(self.device).float().div(255)
 
     def _handle_start_index_edge_cases(self, start_index):
         if not self._buffer_full() and start_index < 0:

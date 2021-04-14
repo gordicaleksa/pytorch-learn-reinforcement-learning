@@ -5,18 +5,22 @@ import numpy as np
 
 from utils.utils import get_atari_wrapper
 
-
+# todo: consider prefixing with _ all non-public functions
 class DQN(nn.Module):
     """
     I wrote the architecture a bit more generic, hence more lines of code,
     but it's more flexible if you want to experiment with the DQN architecture.
 
     """
-    def __init__(self, env, num_in_channels=4, number_of_actions=3):
+    def __init__(self, env, num_in_channels=4, number_of_actions=3, epsilon_schedule=None):
         super().__init__()
         #
         # CNN params - from the Nature DQN paper - MODIFY this part if you want to play
         #
+        self.num_calls = 0
+        self.epsilon_schedule = epsilon_schedule
+        self.env = env
+
         num_of_filters_cnn = [num_in_channels, 32, 64, 64]
         kernel_sizes = [8, 4, 3]
         strides = [4, 2, 1]
@@ -60,8 +64,22 @@ class DQN(nn.Module):
     def forward(self, observation):
         return self.fc_part(self.cnn_part(observation))
 
-    def act(self, observation):
+    def epsilon_greedy(self, observation):
+        assert self.epsilon_schedule is not None, f"No schedule provided, can't call epsilon_greedy function"
+        self.num_calls += 1
 
+        # epsilon-greedy exploration
+        if np.random.rand() < self.epsilon_value():
+            # With epsilon probability act random
+            action = self.env.action_space.sample()
+        else:
+            # Otherwise act greedily - choosing an action that maximizes Q
+            action = self.forward(observation).argmax(dim=1)[0]  # todo: test the shape
+
+        return action
+
+    def epsilon_value(self):
+        return self.epsilon_schedule(self.num_calls)
 
     # The original CNN didn't use any padding: https://github.com/deepmind/dqn/blob/master/dqn/convnet.lua
     # not that it matters - it would probably work either way feel free to experiment with the architecture.
