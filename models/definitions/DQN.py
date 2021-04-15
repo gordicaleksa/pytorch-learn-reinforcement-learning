@@ -74,7 +74,7 @@ class DQN(nn.Module):
             action = self.env.action_space.sample()
         else:
             # Otherwise act greedily - choosing an action that maximizes Q
-            action = self.forward(observation).argmax(dim=1)[0]  # todo: test the shape
+            action = self.forward(observation).argmax(dim=1)[0].cpu().numpy()  # todo: test the shape
 
         return action
 

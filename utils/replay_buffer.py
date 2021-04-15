@@ -6,7 +6,7 @@ import psutil
 import torch
 
 
-from utils import get_atari_wrapper
+from utils.utils import get_atari_wrapper
 
 
 # todo: decide on naming - observations or experience
@@ -33,6 +33,8 @@ class ReplayBuffer:
 
         self.current_buffer_size = 0
         self.current_free_slot_index = 0
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Create main buffer containers - be aware that numpy does lazy execution so it can happen that after a while
         # you start hitting your RAM limit and your system will start page swapping hence the _check_enough_ram function
@@ -67,17 +69,16 @@ class ReplayBuffer:
         # the last state in the buffer doesn't have a successive state
         random_unique_indices = random.sample(range(self.current_buffer_size - 1), batch_size)
 
-        frames_batch = np.concatenate([self._fetch_experience(i)[np.newaxis, :] for i in random_unique_indices], 0)
-        next_frames_batch = np.concatenate([self._fetch_experience(i + 1)[np.newaxis, :] for i in random_unique_indices], 0)
-        # todo: prepare data -> tensor, cuda, etc.
-        actions_batch = self.actions[random_unique_indices]
-        rewards_batch = self.rewards[random_unique_indices]
-        dones_batch = self.dones[random_unique_indices]
+        frames_batch = self._postprocess_experience(np.concatenate([self._fetch_experience(i)[np.newaxis, :] for i in random_unique_indices], 0))
+        next_frames_batch = self._postprocess_experience(np.concatenate([self._fetch_experience(i + 1)[np.newaxis, :] for i in random_unique_indices], 0))
+        actions_batch = torch.from_numpy(self.actions[random_unique_indices]).to(self.device).long()
+        rewards_batch = torch.from_numpy(self.rewards[random_unique_indices]).to(self.device)
+        dones_batch = torch.from_numpy(self.dones[random_unique_indices]).to(self.device).float()
 
         return frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch
 
     def fetch_last_experience(self):
-        return self._fetch_experience((self.current_free_slot_index - 1) % self.max_buffer_size)
+        return self._postprocess_experience(self._fetch_experience((self.current_free_slot_index - 1) % self.max_buffer_size))
 
     #
     # Helper functions
@@ -111,14 +112,17 @@ class ReplayBuffer:
             for index in range(start_index, end_index + 1):
                 experience.append(self.frames[index % self.max_buffer_size])
 
-            return self._postprocess_experience(np.concatenate(experience, 0))
+            # shape = (PF*C, H, W) where PF - number of Past Frames, 4 for Atari
+            return np.concatenate(experience, 0)
         else:
             # reshape from (PF, C, H, W) to (PF*C, H, W) where PF - number of Past Frames, 4 for Atari
-            return self._postprocess_experience(self.frames[start_index:end_index + 1].reshape(-1, self.frame_height, self.frame_width))
+            return self.frames[start_index:end_index + 1].reshape(-1, self.frame_height, self.frame_width)
 
     def _postprocess_experience(self, observation):
-        # shape: (PF*C, H, W) -> (1, PF*C, H, W), numpy -> tensor, move to device, uint8 -> float, [0,255] -> [0, 1]
-        return torch.from_numpy(observation.unsqueeze(0)).to(self.device).float().div(255)
+        if observation.ndim == 3:
+            observation = np.expand_dims(observation, 0)  # shape: (PF*C, H, W) -> (1, PF*C, H, W)
+        # numpy -> tensor, move to device, uint8 -> float, [0,255] -> [0, 1]
+        return torch.from_numpy(observation).to(self.device).float().div(255)
 
     def _handle_start_index_edge_cases(self, start_index):
         if not self._buffer_full() and start_index < 0:
@@ -135,7 +139,7 @@ class ReplayBuffer:
 
         # A done flag marks a boundary between different episodes or lives either way we shouldn't take frames
         # before or at the done flag into consideration
-        for index in range(start_index, end_index + 1):
+        for index in range(start_index, end_index):  # no + 1 here since done flag is not yet set for end_index + 1
             if self.dones[index % self.max_buffer_size]:
                 new_start_index = index + 1
 
