@@ -19,3 +19,28 @@ def get_atari_wrapper(env_id):
     # Add basic Atari processing
     env_wrapped = ChannelFirst(AtariWrapper(gym.make(env_id)))
     return env_wrapped
+
+
+class LinearSchedule:
+
+    def __init__(self, schedule_start_value, schedule_end_value, schedule_duration):
+        self.start_value = schedule_start_value
+        self.end_value = schedule_end_value
+        self.schedule_duration = schedule_duration
+
+    def __call__(self, num_steps):
+        progress = np.clip(num_steps / self.schedule_duration, a_min=None, a_max=1)
+        return self.start_value + (self.end_value - self.start_value) * progress
+
+
+# Test utils
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
+    schedule = LinearSchedule(1., 0.1, 50)
+    schedule_values = []
+    for i in range(100):
+        schedule_values.append(schedule(i))
+
+    plt.plot(schedule_values)
+    plt.show()

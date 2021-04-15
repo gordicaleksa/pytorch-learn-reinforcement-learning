@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 
 
-from utils.utils import get_atari_wrapper
+from utils.utils import get_atari_wrapper, LinearSchedule
 from utils.replay_buffer import ReplayBuffer
 from models.definitions.DQN import DQN
 
@@ -26,7 +26,7 @@ class Actor:
         for _ in range(self.config['acting_learning_ratio']):
             last_index = self.replay_buffer.store_frame(self.last_frame)
             observation = self.replay_buffer.fetch_last_experience()
-            # self.visualize_observation(observation)  # <- for debugging
+            self.visualize_observation(observation)  # <- for debugging
             action = self.sample_action(observation)
             new_frame, reward, done, _ = self.env.step(action)
             self.replay_buffer.store_effect(last_index, action, reward, done)
@@ -65,18 +65,6 @@ class Learner:
         pass
 
 
-class LinearSchedule:
-
-    def __init__(self, schedule_start_value, schedule_end_value, schedule_duration):
-        self.start_value = schedule_start_value
-        self.end_value = schedule_end_value
-        self.schedule_duration = schedule_duration
-
-    def __call__(self, num_steps):
-        progress = np.clip(num_steps / self.schedule_duration, a_min=None, a_max=1)
-        return self.start_value + (self.end_value - self.start_value) * progress
-
-
 def train_dqn(config):
     env = get_atari_wrapper(config['env_id'])
     replay_buffer = ReplayBuffer(config['replay_buffer_size'])
@@ -87,17 +75,17 @@ def train_dqn(config):
         config['epsilon_duration']
     )
 
-    # todo: test the acting part of the pipeline
-
     # todo: focus on learning part
 
     # todo: logging, seeds, visualizations
     # todo: train on CartPole verify it's working
+
     # todo: run on Pong
     # todo: write a readme
 
-    dqn = DQN(env, number_of_actions=env.action_space.n, epsilon_schedule=linear_schedule)
-    target_dqn = DQN(env, number_of_actions=env.action_space.n)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    dqn = DQN(env, number_of_actions=env.action_space.n, epsilon_schedule=linear_schedule).to(device)
+    target_dqn = DQN(env, number_of_actions=env.action_space.n).to(device)
 
     actor = Actor(config, env, replay_buffer, dqn, target_dqn, env.reset())
     learner = Learner()
