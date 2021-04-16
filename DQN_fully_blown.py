@@ -3,7 +3,9 @@ import argparse
 
 import numpy as np
 import torch
+from torch import nn
 import matplotlib.pyplot as plt
+from torch.optim import Adam
 
 
 from utils.utils import get_atari_wrapper, LinearSchedule
@@ -58,11 +60,36 @@ class Actor:
 
 class Learner:
 
-    def __init__(self):
-        pass
+    def __init__(self, replay_buffer, dqn, target_dqn, batch_size, gamma, learning_rate):
+        self.loss = nn.HuberLoss()  # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper)
+        self.replay_buffer = replay_buffer
+        self.dqn = dqn
+        self.target_dqn = target_dqn
+        self.batch_size = batch_size
+        self.gamma = gamma
+        # using Adam instead of RMSProp, the only difference with Nature paper, btw they haven't specified LR
+        self.optimizer = Adam(dqn.parameters(), lr=learning_rate)
 
+    # todo: refactor and add shapes info
     def learn_from_experience(self):
-        pass
+        frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch = self.replay_buffer.fetch_random_experiences(self.batch_size)
+
+        # Better than detaching: in addition to not being a part of the computational graph it
+        # saves time/memory because we're not storing activations during forward propagation needed for the backprop
+        with torch.no_grad():
+            # shape = (B, 1), [0] because max returns (values, indices) tuples
+            next_state_q_values = self.target_dqn(next_frames_batch).max(dim=1, keepdim=True)[0]
+            # todo: reward shape problem?
+            target_q_values = rewards_batch + (1 - dones_batch) * self.gamma * next_state_q_values
+
+        current_state_q_values = self.dqn(frames_batch).gather(dim=1, index=actions_batch)
+
+        loss = self.loss(target_q_values, current_state_q_values)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        # todo: they only mentioned Huber loss in the paper but I see other imps clipping grads lets log grads and if there is need add clipping
+        self.optimizer.step()
 
 
 def train_dqn(config):
@@ -75,7 +102,7 @@ def train_dqn(config):
         config['epsilon_duration']
     )
 
-    # todo: focus on learning part
+    # todo: test the learning part
 
     # todo: logging, seeds, visualizations
     # todo: train on CartPole verify it's working
@@ -88,7 +115,7 @@ def train_dqn(config):
     target_dqn = DQN(env, number_of_actions=env.action_space.n).to(device)
 
     actor = Actor(config, env, replay_buffer, dqn, target_dqn, env.reset())
-    learner = Learner()
+    learner = Learner(replay_buffer, dqn, target_dqn, config['batch_size'], config['gamma'], config['learning_rate'])
 
     while True:
         if actor.get_experience_cnt() >= config['num_of_training_steps']:
@@ -111,6 +138,8 @@ def get_training_args():
     parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=100000)
     parser.add_argument("--acting_learning_ratio", type=int, help="Number of experience steps for every learning step", default=4)
     parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=50000)
+    parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
+    parser.add_argument("--gamma", type=float, default=0.99)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)

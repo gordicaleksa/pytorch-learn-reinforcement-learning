@@ -59,9 +59,9 @@ class ReplayBuffer:
         return self.current_free_slot_index - 1  # we yet need to store effect at this index (action, reward, done)
 
     def store_effect(self, index, action, reward, done):
-        self.actions[index] = action
-        self.rewards[index] = reward
-        self.dones[index] = done
+        self.actions[index] = np.array(action)  # np.array so that we have (N, 1) shape, more concise code later
+        self.rewards[index] = np.array(reward)
+        self.dones[index] = np.array(done)
 
     def fetch_random_experiences(self, batch_size):
         assert self._has_enough_data(batch_size), f"Can't fetch experiences from the replay buffer - not enough data."
