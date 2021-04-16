@@ -8,7 +8,7 @@ def get_atari_wrapper(env_id):
         Ultimately it's not very clear why are SB3's wrappers and OpenAI gym's copy/pasted code for the most part.
         It seems that OpenAI gym doesn't have reward clipping which is necessary for Atari.
 
-        I'm using SB3 because it's actively maintained compared to OpenAI's gym and it has the correct implementation.
+        I'm using SB3 because it's actively maintained compared to OpenAI's gym and it has reward clipping by default.
 
     """
     # This is necessary because AtariWrapper skips 4 frames by default, so we can't have additional skipping through

@@ -31,7 +31,7 @@ class Actor:
     def collect_experience(self):
         for _ in range(self.config['acting_learning_ratio']):
             last_index = self.replay_buffer.store_frame(self.last_frame)
-            observation = self.replay_buffer.fetch_last_experience()
+            observation = self.replay_buffer.fetch_last_observation()
             # self.visualize_observation(observation)  # <- for debugging
             action = self.sample_action(observation)
             new_frame, reward, done, _ = self.env.step(action)
@@ -78,7 +78,7 @@ class Learner:
 
     # todo: refactor and add shapes info
     def learn_from_experience(self):
-        frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch = self.replay_buffer.fetch_random_experiences(self.batch_size)
+        frames_batch, actions_batch, rewards_batch, next_frames_batch, dones_batch = self.replay_buffer.fetch_random_observations(self.batch_size)
 
         # Better than detaching: in addition to not being a part of the computational graph it
         # saves time/memory because we're not storing activations during forward propagation needed for the backprop
