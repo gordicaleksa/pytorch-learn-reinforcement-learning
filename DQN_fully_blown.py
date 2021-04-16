@@ -1,3 +1,7 @@
+"""
+    Some complexity is captured in wrappers I'm using.
+
+"""
 import argparse
 # todo: what is force used for in Monitor?
 
@@ -106,8 +110,7 @@ def train_dqn(config):
         config['epsilon_duration']
     )
 
-    # todo: test the learning part
-
+    # todo: refactor
     # todo: logging, seeds, visualizations
     # todo: train on CartPole verify it's working
 

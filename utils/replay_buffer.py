@@ -39,7 +39,7 @@ class ReplayBuffer:
         # Create main buffer containers - be aware that numpy does lazy execution so it can happen that after a while
         # you start hitting your RAM limit and your system will start page swapping hence the _check_enough_ram function
         self.frames = np.empty([self.max_buffer_size] + frame_shape, dtype=np.uint8)
-        self.actions = np.empty([self.max_buffer_size, 1], dtype=np.uint8)  # todo: how will uint8 interact with indexing
+        self.actions = np.empty([self.max_buffer_size, 1], dtype=np.uint8)
         self.rewards = np.empty([self.max_buffer_size, 1], dtype=np.float32)
         self.dones = np.empty([self.max_buffer_size, 1], dtype=np.uint8)
 
