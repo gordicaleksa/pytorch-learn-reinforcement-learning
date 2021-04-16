@@ -28,7 +28,7 @@ class Actor:
         for _ in range(self.config['acting_learning_ratio']):
             last_index = self.replay_buffer.store_frame(self.last_frame)
             observation = self.replay_buffer.fetch_last_experience()
-            self.visualize_observation(observation)  # <- for debugging
+            # self.visualize_observation(observation)  # <- for debugging
             action = self.sample_action(observation)
             new_frame, reward, done, _ = self.env.step(action)
             self.replay_buffer.store_effect(last_index, action, reward, done)
@@ -61,13 +61,15 @@ class Actor:
 class Learner:
 
     def __init__(self, replay_buffer, dqn, target_dqn, batch_size, gamma, learning_rate):
-        self.loss = nn.HuberLoss()  # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper)
+        # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper) aka Huber loss
+        self.loss = nn.SmoothL1Loss()
         self.replay_buffer = replay_buffer
         self.dqn = dqn
         self.target_dqn = target_dqn
         self.batch_size = batch_size
         self.gamma = gamma
-        # using Adam instead of RMSProp, the only difference with Nature paper, btw they haven't specified LR
+        # todo: using Adam instead of RMSProp, the only difference with Nature paper, btw they haven't specified LR
+        # I see some annealing in the original Lua imp
         self.optimizer = Adam(dqn.parameters(), lr=learning_rate)
 
     # todo: refactor and add shapes info
@@ -79,7 +81,8 @@ class Learner:
         with torch.no_grad():
             # shape = (B, 1), [0] because max returns (values, indices) tuples
             next_state_q_values = self.target_dqn(next_frames_batch).max(dim=1, keepdim=True)[0]
-            # todo: reward shape problem?
+
+            # shape = (B, 1) - implicit broadcasting of rewards and done flags
             target_q_values = rewards_batch + (1 - dones_batch) * self.gamma * next_state_q_values
 
         current_state_q_values = self.dqn(frames_batch).gather(dim=1, index=actions_batch)
@@ -88,7 +91,8 @@ class Learner:
 
         self.optimizer.zero_grad()
         loss.backward()
-        # todo: they only mentioned Huber loss in the paper but I see other imps clipping grads lets log grads and if there is need add clipping
+        # todo: they only mentioned Huber loss in the paper but I see other imps clipping grads
+        #  lets log grads and if there is need add clipping
         self.optimizer.step()
 
 
@@ -135,11 +139,12 @@ def get_training_args():
     # Training related
     parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='PongNoFrameskip-v4')
     parser.add_argument("--num_of_training_steps", type=int, help="number of training env steps", default=200000000)
-    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=100000)
+    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=100000) # todo: 1M
     parser.add_argument("--acting_learning_ratio", type=int, help="Number of experience steps for every learning step", default=4)
-    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=50000)
+    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=100)  # todo: 50000
     parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
     parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--learning_rate", type=float, default=1e-4)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)

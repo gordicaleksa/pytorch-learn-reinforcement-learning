@@ -39,9 +39,9 @@ class ReplayBuffer:
         # Create main buffer containers - be aware that numpy does lazy execution so it can happen that after a while
         # you start hitting your RAM limit and your system will start page swapping hence the _check_enough_ram function
         self.frames = np.empty([self.max_buffer_size] + frame_shape, dtype=np.uint8)
-        self.actions = np.empty([self.max_buffer_size], dtype=np.uint8)  # todo: how will uint8 interact with indexing
-        self.rewards = np.empty([self.max_buffer_size], dtype=np.float32)
-        self.dones = np.empty([self.max_buffer_size], dtype=np.uint8)
+        self.actions = np.empty([self.max_buffer_size, 1], dtype=np.uint8)  # todo: how will uint8 interact with indexing
+        self.rewards = np.empty([self.max_buffer_size, 1], dtype=np.float32)
+        self.dones = np.empty([self.max_buffer_size, 1], dtype=np.uint8)
 
         # Basic memory handling since Atari uses 1M frames - and not everybody has a big enough RAM for that
         self._check_enough_ram(strict)
@@ -59,9 +59,9 @@ class ReplayBuffer:
         return self.current_free_slot_index - 1  # we yet need to store effect at this index (action, reward, done)
 
     def store_effect(self, index, action, reward, done):
-        self.actions[index] = np.array(action)  # np.array so that we have (N, 1) shape, more concise code later
-        self.rewards[index] = np.array(reward)
-        self.dones[index] = np.array(done)
+        self.actions[index] = action
+        self.rewards[index] = reward
+        self.dones[index] = done
 
     def fetch_random_experiences(self, batch_size):
         assert self._has_enough_data(batch_size), f"Can't fetch experiences from the replay buffer - not enough data."
