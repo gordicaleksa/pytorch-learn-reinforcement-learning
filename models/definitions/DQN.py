@@ -114,5 +114,6 @@ if __name__ == '__main__':
     # v4 - actions we send to env are executed, whereas v0 would execute the last action we sent with 0.25 probability
     env_id = "PongNoFrameskip-v4"
     env_wrapped = get_atari_wrapper(env_id)
-    dqn = DQN(env_wrapped)  # testing only __init__ function
+    dqn = DQN(env_wrapped)  # testing only the __init__ function (mainly the automatic shape calculation mechanism)
+
 
