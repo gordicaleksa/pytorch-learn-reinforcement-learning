@@ -78,7 +78,7 @@ class DQN(nn.Module):
         self.num_calls_to_epsilon_greedy += 1
 
         # Epsilon-greedy exploration
-        if np.random.rand() < self._epsilon_value():
+        if np.random.rand() < self.epsilon_value():
             # With epsilon probability act random
             action = self.env.action_space.sample()
         else:
@@ -88,12 +88,12 @@ class DQN(nn.Module):
 
         return action
 
+    def epsilon_value(self):
+        return self.epsilon_schedule(self.num_calls_to_epsilon_greedy)
+
     #
     # Helper/"private" functions
     #
-
-    def _epsilon_value(self):
-        return self.epsilon_schedule(self.num_calls_to_epsilon_greedy)
 
     # The original CNN didn't use any padding: https://github.com/deepmind/dqn/blob/master/dqn/convnet.lua
     # not that it matters - it would probably work either way feel free to experiment with the architecture.

@@ -11,6 +11,7 @@
 """
 
 import argparse
+import time
 
 
 import numpy as np
@@ -18,6 +19,7 @@ import torch
 from torch import nn
 import matplotlib.pyplot as plt
 from torch.optim import Adam
+from torch.utils.tensorboard import SummaryWriter
 
 
 from utils.utils import get_atari_wrapper, LinearSchedule
@@ -25,11 +27,12 @@ from utils.replay_buffer import ReplayBuffer
 from models.definitions.DQN import DQN
 
 
-# todo: logging, seeds, visualizations
+# todo: logging, seeds
 # todo: train on CartPole verify it's working
 
 # todo: read the paper again
 
+# todo: visualizations (dump episode video from time to time using monitor)
 # todo: run on Pong
 # todo: write a readme
 class ActorLearner:
@@ -39,13 +42,15 @@ class ActorLearner:
         # Actor params
         #
 
+        self.start_time = time.time()
         self.env = env
         self.replay_buffer = replay_buffer
         self.dqn = dqn
         self.target_dqn = target_dqn
         self.last_frame = last_frame  # always keeps the latest frame from the environment
-        # todo: potentially replace this with Monitor's functionality
-        self.actor_cnt = 0  # counts the number of steps from the environment
+
+        self.log_freq = config['log_freq']
+        self.tensorboard_writer = SummaryWriter()
 
         #
         # Learner params
@@ -64,6 +69,7 @@ class ActorLearner:
         self.target_dqn_update_interval = config['target_dqn_update_interval']
         # should perform a hard or a soft update of target DQN weights
         self.hard_target_update = config['is_hard_target_update']
+        self.huber_loss = []
 
     def collect_experience(self):
         # We're collecting more experience than we're doing weight updates (4x in the Nature paper)
@@ -76,11 +82,14 @@ class ActorLearner:
             self.replay_buffer.store_effect(last_index, action, reward, done)
             if done:
                 new_frame = self.env.reset()
+                self.maybe_log_episode()
+
             self.last_frame = new_frame
-            self.actor_cnt += 1
+
+            self.maybe_log()
 
     def sample_action(self, observation):
-        if self.actor_cnt < self.start_learning:
+        if self.env.get_total_steps() < self.start_learning:
             action = self.env.action_space.sample()  # initial warm up period - no learning and acting randomly
         else:
             with torch.no_grad():
@@ -88,7 +97,7 @@ class ActorLearner:
         return action
 
     def get_experience_cnt(self):
-        return self.actor_cnt
+        return self.env.get_total_steps()
 
     def learn_from_experience(self):
         observations, actions, rewards, next_observations, dones = self.replay_buffer.fetch_random_observations(self.batch_size)
@@ -107,6 +116,7 @@ class ActorLearner:
         current_state_q_values = self.dqn(observations).gather(dim=1, index=actions)
 
         loss = self.loss(target_q_values, current_state_q_values)
+        self.huber_loss.append(loss.item())
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -129,6 +139,17 @@ class ActorLearner:
         plt.imshow(stacked_frames)
         plt.show()
         plt.close()
+
+    def maybe_log_episode(self):
+        pass
+
+    def maybe_log(self):  # todo: add checkpointing logic here as well
+        num_steps = self.env.get_total_steps()
+        if num_steps % self.log_freq == 0:
+            self.tensorboard_writer.add_scalar('epsilon', self.dqn.epsilon_value(), num_steps)
+            self.tensorboard_writer.add_scalar('Huber loss', np.mean(self.huber_loss), num_steps)
+
+            self.huber_loss = []
 
 
 def train_dqn(config):
@@ -158,8 +179,6 @@ def train_dqn(config):
 
 
 # todo: thing to log:
-# epsilon value
-# Huber loss
 # Number of finished episodes
 # fps
 # rewards mean last N steps
@@ -178,9 +197,10 @@ def get_training_args():
     parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
     parser.add_argument("--gamma", type=float, help="Discount factor", default=0.99)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
+    parser.add_argument("--is_hard_target_update", action='store_true', help='perform hard target DQN update')
 
     # Logging/debugging/checkpoint related (helps a lot with experimentation)
-    parser.add_argument("--log_freq", type=int, help="log various metrics to tensorboard (None no logging)", default=100)
+    parser.add_argument("--log_freq", type=int, help="log various metrics to tensorboard after this many env steps (None no logging)", default=1000)
     parser.add_argument("--checkpoint_freq", type=int, help="checkpoint model saving freq (None for no checkpointing)", default=1000)
 
     # epsilon-greedy annealing params
