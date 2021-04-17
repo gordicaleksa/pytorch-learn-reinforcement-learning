@@ -72,7 +72,9 @@ class ActorLearner:
         self.target_dqn_update_interval = config['target_dqn_update_interval']
         # should perform a hard or a soft update of target DQN weights
         self.hard_target_update = config['is_hard_target_update']
+
         self.huber_loss = []
+        self.best_episode_reward = -np.inf
 
     def collect_experience(self):
         # We're collecting more experience than we're doing weight updates (4x in the Nature paper)
@@ -151,6 +153,9 @@ class ActorLearner:
             self.tensorboard_writer.add_scalar('Reward per episode', rewards[-1], num_episodes)
             self.tensorboard_writer.add_scalar('Steps per episode', episode_lengths[-1], num_episodes)
 
+            self.best_episode_reward = max(self.best_episode_reward, rewards[-1])
+            self.config['best_episode_reward'] = self.best_episode_reward
+
     def maybe_log(self):
         num_steps = self.env.get_total_steps()
 
@@ -167,7 +172,7 @@ class ActorLearner:
 
 
 def train_dqn(config):
-    env = utils.get_atari_wrapper(config['env_id'])
+    env = utils.get_env_wrapper(config['env_id'])
     replay_buffer = ReplayBuffer(config['replay_buffer_size'])
     utils.set_random_seeds(env, config['seed'])
 
@@ -198,11 +203,11 @@ def get_training_args():
 
     # Training related
     parser.add_argument("--seed", type=int, help="Very important for reproducibility - set random seed", default=42)
-    parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='PongNoFrameskip-v4')
-    parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=200000000)
-    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=100000) # todo: 1M
+    parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='PongNoFrameskip-v4')  # todo: CartPole-v1
+    parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=5000000)  # todo: 50000000
+    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=400000) # todo: 1M
     parser.add_argument("--acting_learning_ratio", type=int, help="Number of experience steps for every learning step", default=4)
-    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=100)  # todo: 50000
+    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=10000)  # todo: 50000
     parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
     parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
     parser.add_argument("--gamma", type=float, help="Discount factor", default=0.99)
@@ -210,14 +215,14 @@ def get_training_args():
     parser.add_argument("--is_hard_target_update", action='store_true', help='perform hard target DQN update')
 
     # Logging/debugging/checkpoint related (helps a lot with experimentation)
-    parser.add_argument("--log_freq", type=int, help="log various metrics to tensorboard after this many env steps (None no logging)", default=1000)
-    parser.add_argument("--episode_log_freq", type=int, help="log various metrics to tensorboard after this many episodes (None no logging)", default=1)
-    parser.add_argument("--checkpoint_freq", type=int, help="checkpoint model saving freq (None for no checkpointing)", default=1000)
+    parser.add_argument("--log_freq", type=int, help="Log various metrics to tensorboard after this many env steps (None no logging)", default=1000)
+    parser.add_argument("--episode_log_freq", type=int, help="Log various metrics to tensorboard after this many episodes (None no logging)", default=1)
+    parser.add_argument("--checkpoint_freq", type=int, help="Save checkpoint model after this many env steps (None for no checkpointing)", default=10000)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)
     parser.add_argument("--epsilon_end_value", type=float, default=0.1)
-    parser.add_argument("--epsilon_duration", type=int, default=1000000)
+    parser.add_argument("--epsilon_duration", type=int, default=50000)  # todo: 1000000
     args = parser.parse_args()
 
     # Wrapping training configuration into a dictionary

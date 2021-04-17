@@ -6,7 +6,7 @@ import psutil
 import torch
 
 
-from utils.utils import get_atari_wrapper
+from utils.utils import get_env_wrapper
 
 
 class ReplayBuffer:
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     # NoFrameskip - receive every frame from the env whereas the version without NoFrameskip would give every 4th frame
     # v4 - actions we send to env are executed, whereas v0 would execute the last action we sent with 0.25 probability
     env_id = "PongNoFrameskip-v4"
-    env = get_atari_wrapper(env_id)
+    env = get_env_wrapper(env_id)
 
     # Step 1: Collect experience
     frame = env.reset()

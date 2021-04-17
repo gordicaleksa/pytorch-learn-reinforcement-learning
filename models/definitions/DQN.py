@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 
-from utils.utils import get_atari_wrapper
+from utils.utils import get_env_wrapper
 
 
 class DQN(nn.Module):
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     # NoFrameskip - receive every frame from the env whereas the version without NoFrameskip would give every 4th frame
     # v4 - actions we send to env are executed, whereas v0 would execute the last action we sent with 0.25 probability
     env_id = "PongNoFrameskip-v4"
-    env_wrapped = get_atari_wrapper(env_id)
+    env_wrapped = get_env_wrapper(env_id)
     dqn = DQN(env_wrapped)  # testing only the __init__ function (mainly the automatic shape calculation mechanism)
 
 
