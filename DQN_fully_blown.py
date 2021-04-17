@@ -27,25 +27,47 @@ from models.definitions.DQN import DQN
 
 # todo: logging, seeds, visualizations
 # todo: train on CartPole verify it's working
+
 # todo: read the paper again
 
 # todo: run on Pong
 # todo: write a readme
-class Actor:
+class ActorLearner:
 
     def __init__(self, config, env, replay_buffer, dqn, target_dqn, last_frame):
-        self.config = config
+        #
+        # Actor params
+        #
+
         self.env = env
         self.replay_buffer = replay_buffer
         self.dqn = dqn
         self.target_dqn = target_dqn
         self.last_frame = last_frame  # always keeps the latest frame from the environment
         # todo: potentially replace this with Monitor's functionality
-        self.experience_cnt = 0  # counts the number of steps from the environment
+        self.actor_cnt = 0  # counts the number of steps from the environment
+
+        #
+        # Learner params
+        #
+
+        # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper) aka "Huber loss"
+        self.acting_learning_ratio = config['acting_learning_ratio']
+        self.start_learning = config['start_learning']
+        self.loss = nn.SmoothL1Loss()
+        self.batch_size = config['batch_size']
+        self.gamma = config['gamma']
+        # todo: experiment with RMSProp, the only difference with Nature paper, btw they haven't specified LR
+        # todo: I see some LR annealing in the original Lua imp
+        self.optimizer = Adam(dqn.parameters(), lr=config['learning_rate'])
+        self.learner_cnt = 0
+        self.target_dqn_update_interval = config['target_dqn_update_interval']
+        # should perform a hard or a soft update of target DQN weights
+        self.hard_target_update = config['is_hard_target_update']
 
     def collect_experience(self):
         # We're collecting more experience than we're doing weight updates (4x in the Nature paper)
-        for _ in range(self.config['acting_learning_ratio']):
+        for _ in range(self.acting_learning_ratio):
             last_index = self.replay_buffer.store_frame(self.last_frame)
             observation = self.replay_buffer.fetch_last_observation()
             # self.visualize_observation(observation)  # <- for debugging
@@ -55,10 +77,10 @@ class Actor:
             if done:
                 new_frame = self.env.reset()
             self.last_frame = new_frame
-            self.experience_cnt += 1
+            self.actor_cnt += 1
 
     def sample_action(self, observation):
-        if self.experience_cnt < self.config['start_learning']:
+        if self.actor_cnt < self.start_learning:
             action = self.env.action_space.sample()  # initial warm up period - no learning and acting randomly
         else:
             with torch.no_grad():
@@ -66,35 +88,7 @@ class Actor:
         return action
 
     def get_experience_cnt(self):
-        return self.experience_cnt
-
-    @staticmethod
-    def visualize_observation(observation):
-        observation = observation[0].to('cpu').numpy()  # (1, C, H, W) -> (C, H, W)
-        stacked_frames = np.hstack([(img * 255).astype(np.uint8) for img in observation])  # (C, H, W) -> (H, C*W)
-        plt.imshow(stacked_frames)
-        plt.show()
-        plt.close()
-
-
-# todo: merge Learner and Actor too many common functionality and we need shared time steps
-class Learner:
-
-    def __init__(self, env, replay_buffer, dqn, target_dqn, batch_size, gamma, learning_rate, target_dqn_update_interval, hard_target_update=True):
-        # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper) aka "Huber loss"
-        self.loss = nn.SmoothL1Loss()
-        self.env = env
-        self.replay_buffer = replay_buffer
-        self.dqn = dqn
-        self.target_dqn = target_dqn
-        self.batch_size = batch_size
-        self.gamma = gamma
-        # todo: experiment with RMSProp, the only difference with Nature paper, btw they haven't specified LR
-        # todo: I see some LR annealing in the original Lua imp
-        self.optimizer = Adam(dqn.parameters(), lr=learning_rate)
-        self.learning_cnt = 0
-        self.target_dqn_update_interval = target_dqn_update_interval
-        self.hard_target_update = hard_target_update  # should perform a hard or a soft update of target DQN weights
+        return self.actor_cnt
 
     def learn_from_experience(self):
         observations, actions, rewards, next_observations, dones = self.replay_buffer.fetch_random_observations(self.batch_size)
@@ -119,19 +113,22 @@ class Learner:
         # todo: they only mentioned Huber loss in the paper but I see other imps clipping grads
         #  lets log grads and if there is need add clipping
         self.optimizer.step()
-        self.learning_cnt += 1
+        self.learner_cnt += 1
 
         # Periodically update the target DQN weights
-        if self.learning_cnt % self.target_dqn_update_interval == 0:
+        if self.learner_cnt % self.target_dqn_update_interval == 0:  # todo: should update every learner or actor step?
             if self.hard_target_update:
                 self.target_dqn.load_state_dict(self.dqn.state_dict())
             else:  # soft update
                 raise Exception(f'Not yet implemented')
 
-        tmp = self.env.get_episode_rewards()
-        # .get_total_steps()
-        if len(tmp) > 0:
-            print('mkay')
+    @staticmethod
+    def visualize_observation(observation):
+        observation = observation[0].to('cpu').numpy()  # (1, C, H, W) -> (C, H, W)
+        stacked_frames = np.hstack([(img * 255).astype(np.uint8) for img in observation])  # (C, H, W) -> (H, C*W)
+        plt.imshow(stacked_frames)
+        plt.show()
+        plt.close()
 
 
 def train_dqn(config):
@@ -150,15 +147,14 @@ def train_dqn(config):
 
     # Don't get confused by the actor-learner terminology, DQN is not actor-critic method, but conceptually
     # we can split the learning process into collecting experience/acting in the env and learning from that experience
-    actor = Actor(config, env, replay_buffer, dqn, target_dqn, env.reset())
-    learner = Learner(env, replay_buffer, dqn, target_dqn, config['batch_size'], config['gamma'], config['learning_rate'], config['target_dqn_update_interval'])
+    actor_learner = ActorLearner(config, env, replay_buffer, dqn, target_dqn, env.reset())
 
-    while actor.get_experience_cnt() < config['num_of_training_steps']:
+    while actor_learner.get_experience_cnt() < config['num_of_training_steps']:
 
-        actor.collect_experience()
+        actor_learner.collect_experience()
 
-        if actor.get_experience_cnt() > config['start_learning']:
-            learner.learn_from_experience()
+        if actor_learner.get_experience_cnt() > config['start_learning']:
+            actor_learner.learn_from_experience()
 
 
 # todo: thing to log:

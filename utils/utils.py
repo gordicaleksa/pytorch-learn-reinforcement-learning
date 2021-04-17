@@ -21,7 +21,7 @@ def get_atari_wrapper(env_id):
 
     # The only additional thing needed is to convert the shape to channel-first because of PyTorch's models
     monitor_dump_dir = os.path.join(os.path.dirname(__file__), os.pardir, 'gym_monitor')
-    env_wrapped = Monitor(ChannelFirst(AtariWrapper(gym.make(env_id))), monitor_dump_dir, force=True)
+    env_wrapped = Monitor(ChannelFirst(AtariWrapper(gym.make(env_id))), monitor_dump_dir, force=True, video_callable=False)
 
     return env_wrapped
 
