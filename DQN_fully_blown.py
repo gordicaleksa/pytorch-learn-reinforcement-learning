@@ -10,6 +10,7 @@
 
 """
 
+import os
 import argparse
 import time
 
@@ -22,15 +23,13 @@ from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 
 
-from utils.utils import get_atari_wrapper, LinearSchedule
+import utils.utils as utils
 from utils.replay_buffer import ReplayBuffer
+from utils.constants import *
 from models.definitions.DQN import DQN
 
 
-# todo: logging, seeds
-# todo: train on CartPole verify it's working
-
-# todo: read the paper again
+# todo: train on CartPole verify it's working (TEST WITH SMALL REPLAY BUFFER TO CATCH BUGS)
 
 # todo: visualizations (dump episode video from time to time using monitor)
 # todo: run on Pong
@@ -43,6 +42,7 @@ class ActorLearner:
         #
 
         self.start_time = time.time()
+        self.config = config
         self.env = env
         self.replay_buffer = replay_buffer
         self.dqn = dqn
@@ -50,6 +50,8 @@ class ActorLearner:
         self.last_frame = last_frame  # always keeps the latest frame from the environment
 
         self.log_freq = config['log_freq']
+        self.episode_log_freq = config['episode_log_freq']
+        self.checkpoint_freq = config['checkpoint_freq']
         self.tensorboard_writer = SummaryWriter()
 
         #
@@ -64,6 +66,7 @@ class ActorLearner:
         self.gamma = config['gamma']
         # todo: experiment with RMSProp, the only difference with Nature paper, btw they haven't specified LR
         # todo: I see some LR annealing in the original Lua imp
+        # todo: read Adam and RMSProp papers
         self.optimizer = Adam(dqn.parameters(), lr=config['learning_rate'])
         self.learner_cnt = 0
         self.target_dqn_update_interval = config['target_dqn_update_interval']
@@ -125,8 +128,8 @@ class ActorLearner:
         self.optimizer.step()
         self.learner_cnt += 1
 
-        # Periodically update the target DQN weights
-        if self.learner_cnt % self.target_dqn_update_interval == 0:  # todo: should update every learner or actor step?
+        # Periodically update the target DQN weights, coupled to weight updates and not env steps
+        if self.learner_cnt % self.target_dqn_update_interval == 0:
             if self.hard_target_update:
                 self.target_dqn.load_state_dict(self.dqn.state_dict())
             else:  # soft update
@@ -141,22 +144,34 @@ class ActorLearner:
         plt.close()
 
     def maybe_log_episode(self):
-        pass
+        rewards = self.env.get_episode_rewards()
+        episode_lengths = self.env.get_episode_lengths()
+        num_episodes = len(rewards)
+        if self.episode_log_freq is not None and num_episodes % self.episode_log_freq == 0:
+            self.tensorboard_writer.add_scalar('Reward per episode', rewards[-1], num_episodes)
+            self.tensorboard_writer.add_scalar('Steps per episode', episode_lengths[-1], num_episodes)
 
-    def maybe_log(self):  # todo: add checkpointing logic here as well
+    def maybe_log(self):
         num_steps = self.env.get_total_steps()
-        if num_steps % self.log_freq == 0:
-            self.tensorboard_writer.add_scalar('epsilon', self.dqn.epsilon_value(), num_steps)
+
+        if self.log_freq is not None and num_steps % self.log_freq == 0:
+            self.tensorboard_writer.add_scalar('Epsilon', self.dqn.epsilon_value(), num_steps)
             self.tensorboard_writer.add_scalar('Huber loss', np.mean(self.huber_loss), num_steps)
+            self.tensorboard_writer.add_scalar('FPS', num_steps / (time.time() - self.start_time), num_steps)
 
             self.huber_loss = []
 
+        if self.checkpoint_freq is not None and num_steps % self.checkpoint_freq == 0:
+            ckpt_model_name = f'dqn_{self.config["env_id"]}_ckpt_steps_{num_steps}.pth'
+            torch.save(utils.get_training_state(self.config, self.dqn), os.path.join(CHECKPOINTS_PATH, ckpt_model_name))
+
 
 def train_dqn(config):
-    env = get_atari_wrapper(config['env_id'])
+    env = utils.get_atari_wrapper(config['env_id'])
     replay_buffer = ReplayBuffer(config['replay_buffer_size'])
+    utils.set_random_seeds(env, config['seed'])
 
-    linear_schedule = LinearSchedule(
+    linear_schedule = utils.LinearSchedule(
         config['epsilon_start_value'],
         config['epsilon_end_value'],
         config['epsilon_duration']
@@ -178,16 +193,11 @@ def train_dqn(config):
             actor_learner.learn_from_experience()
 
 
-# todo: thing to log:
-# Number of finished episodes
-# fps
-# rewards mean last N steps
-# episode length mean
-# success rate?
 def get_training_args():
     parser = argparse.ArgumentParser()
 
     # Training related
+    parser.add_argument("--seed", type=int, help="Very important for reproducibility - set random seed", default=42)
     parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='PongNoFrameskip-v4')
     parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=200000000)
     parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=100000) # todo: 1M
@@ -201,6 +211,7 @@ def get_training_args():
 
     # Logging/debugging/checkpoint related (helps a lot with experimentation)
     parser.add_argument("--log_freq", type=int, help="log various metrics to tensorboard after this many env steps (None no logging)", default=1000)
+    parser.add_argument("--episode_log_freq", type=int, help="log various metrics to tensorboard after this many episodes (None no logging)", default=1)
     parser.add_argument("--checkpoint_freq", type=int, help="checkpoint model saving freq (None for no checkpointing)", default=1000)
 
     # epsilon-greedy annealing params

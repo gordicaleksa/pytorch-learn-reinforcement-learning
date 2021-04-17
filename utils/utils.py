@@ -1,6 +1,7 @@
 import os
 
 
+import git
 import gym
 import numpy as np
 from stable_baselines3.common.atari_wrappers import AtariWrapper
@@ -48,6 +49,42 @@ class LinearSchedule:
     def __call__(self, num_steps):
         progress = np.clip(num_steps / self.schedule_duration, a_min=None, a_max=1)
         return self.start_value + (self.end_value - self.start_value) * progress
+
+
+def get_training_state(training_config, model):
+    training_state = {
+        "commit_hash": git.Repo(search_parent_directories=True).head.object.hexsha,
+
+        # Training details
+        "dataset_name": training_config['dataset_name'],
+        "num_of_epochs": training_config['num_of_epochs'],
+        "test_perf": training_config['test_perf'],
+
+        # Model structure
+        "num_of_layers": training_config['num_of_layers'],
+        "num_heads_per_layer": training_config['num_heads_per_layer'],
+        "num_features_per_layer": training_config['num_features_per_layer'],
+        "add_skip_connection": training_config['add_skip_connection'],
+        "bias": training_config['bias'],
+        "dropout": training_config['dropout'],
+        "layer_type": training_config['layer_type'].name,
+
+        # Model state
+        "state_dict": model.state_dict()
+    }
+
+    return training_state
+
+
+def set_random_seeds(env, seed):
+    import torch
+    import random
+
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    env.action_space.seed(seed)  # probably redundant but I found an article where somebody had a problem with this
+    env.seed(seed)
 
 
 # Test utils
