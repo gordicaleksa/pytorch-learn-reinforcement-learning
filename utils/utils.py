@@ -1,6 +1,10 @@
+import os
+
+
 import gym
 import numpy as np
 from stable_baselines3.common.atari_wrappers import AtariWrapper
+from gym.wrappers import Monitor
 
 
 def get_atari_wrapper(env_id):
@@ -16,7 +20,8 @@ def get_atari_wrapper(env_id):
     assert 'NoFrameskip' in env_id, f'Expected NoFrameskip environment got {env_id}'
 
     # The only additional thing needed is to convert the shape to channel-first because of PyTorch's models
-    env_wrapped = ChannelFirst(AtariWrapper(gym.make(env_id)))
+    monitor_dump_dir = os.path.join(os.path.dirname(__file__), os.pardir, 'gym_monitor')
+    env_wrapped = Monitor(ChannelFirst(AtariWrapper(gym.make(env_id))), monitor_dump_dir, force=True)
 
     return env_wrapped
 

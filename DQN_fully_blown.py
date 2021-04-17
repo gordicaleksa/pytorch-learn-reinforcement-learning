@@ -25,7 +25,6 @@ from utils.replay_buffer import ReplayBuffer
 from models.definitions.DQN import DQN
 
 
-# todo: what is force used for in Monitor?
 # todo: logging, seeds, visualizations
 # todo: train on CartPole verify it's working
 # todo: read the paper again
@@ -78,11 +77,13 @@ class Actor:
         plt.close()
 
 
+# todo: merge Learner and Actor too many common functionality and we need shared time steps
 class Learner:
 
-    def __init__(self, replay_buffer, dqn, target_dqn, batch_size, gamma, learning_rate, target_dqn_update_interval, hard_target_update=True):
+    def __init__(self, env, replay_buffer, dqn, target_dqn, batch_size, gamma, learning_rate, target_dqn_update_interval, hard_target_update=True):
         # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper) aka "Huber loss"
         self.loss = nn.SmoothL1Loss()
+        self.env = env
         self.replay_buffer = replay_buffer
         self.dqn = dqn
         self.target_dqn = target_dqn
@@ -127,6 +128,11 @@ class Learner:
             else:  # soft update
                 raise Exception(f'Not yet implemented')
 
+        tmp = self.env.get_episode_rewards()
+        # .get_total_steps()
+        if len(tmp) > 0:
+            print('mkay')
+
 
 def train_dqn(config):
     env = get_atari_wrapper(config['env_id'])
@@ -145,7 +151,7 @@ def train_dqn(config):
     # Don't get confused by the actor-learner terminology, DQN is not actor-critic method, but conceptually
     # we can split the learning process into collecting experience/acting in the env and learning from that experience
     actor = Actor(config, env, replay_buffer, dqn, target_dqn, env.reset())
-    learner = Learner(replay_buffer, dqn, target_dqn, config['batch_size'], config['gamma'], config['learning_rate'], config['target_dqn_update_interval'])
+    learner = Learner(env, replay_buffer, dqn, target_dqn, config['batch_size'], config['gamma'], config['learning_rate'], config['target_dqn_update_interval'])
 
     while actor.get_experience_cnt() < config['num_of_training_steps']:
 
@@ -154,22 +160,32 @@ def train_dqn(config):
         if actor.get_experience_cnt() > config['start_learning']:
             learner.learn_from_experience()
 
-        # todo: logging
 
-
+# todo: thing to log:
+# epsilon value
+# Huber loss
+# Number of finished episodes
+# fps
+# rewards mean last N steps
+# episode length mean
+# success rate?
 def get_training_args():
     parser = argparse.ArgumentParser()
 
     # Training related
     parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='PongNoFrameskip-v4')
-    parser.add_argument("--num_of_training_steps", type=int, help="number of training env steps", default=200000000)
+    parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=200000000)
     parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=100000) # todo: 1M
     parser.add_argument("--acting_learning_ratio", type=int, help="Number of experience steps for every learning step", default=4)
     parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=100)  # todo: 50000
     parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
     parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
-    parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--gamma", type=float, help="Discount factor", default=0.99)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
+
+    # Logging/debugging/checkpoint related (helps a lot with experimentation)
+    parser.add_argument("--log_freq", type=int, help="log various metrics to tensorboard (None no logging)", default=100)
+    parser.add_argument("--checkpoint_freq", type=int, help="checkpoint model saving freq (None for no checkpointing)", default=1000)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)
