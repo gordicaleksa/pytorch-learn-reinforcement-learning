@@ -30,7 +30,6 @@ from models.definitions.DQN import DQN
 
 
 # todo: train on CartPole verify it's working (TEST WITH SMALL REPLAY BUFFER TO CATCH BUGS)
-
 # todo: visualizations (dump episode video from time to time using monitor)
 # todo: run on Pong
 # todo: write a readme
@@ -51,6 +50,7 @@ class ActorLearner:
 
         self.log_freq = config['log_freq']
         self.episode_log_freq = config['episode_log_freq']
+        self.grads_log_freq = config['grads_log_freq']
         self.checkpoint_freq = config['checkpoint_freq']
         self.tensorboard_writer = SummaryWriter()
 
@@ -125,6 +125,7 @@ class ActorLearner:
 
         self.optimizer.zero_grad()
         loss.backward()
+        self.maybe_log_grads()
         # todo: they only mentioned Huber loss in the paper but I see other imps clipping grads
         #  lets log grads and if there is need add clipping
         self.optimizer.step()
@@ -170,6 +171,16 @@ class ActorLearner:
             ckpt_model_name = f'dqn_{self.config["env_id"]}_ckpt_steps_{num_steps}.pth'
             torch.save(utils.get_training_state(self.config, self.dqn), os.path.join(CHECKPOINTS_PATH, ckpt_model_name))
 
+    def maybe_log_grads(self):  # todo: this can probably be move to periodic maybe_log function
+        if self.grads_log_freq is not None and self.learner_cnt % self.grads_log_freq == 0:
+            total_grad = 0
+            for cnt, (name, weight_or_bias_parameters) in enumerate(self.dqn.named_parameters()):
+                grad_norm = weight_or_bias_parameters.grad.data.norm(p=2).item()
+                self.tensorboard_writer.add_scalar(f'grad_norms/{name}', grad_norm, self.learner_cnt)
+                total_grad += grad_norm ** 2
+            total_grad = total_grad ** (1/2)  # as if we concatenated all of the params into a single vector and took L2
+            self.tensorboard_writer.add_scalar(f'grad_norms/total', total_grad, self.learner_cnt)
+
 
 def train_dqn(config):
     env = utils.get_env_wrapper(config['env_id'])
@@ -198,6 +209,8 @@ def train_dqn(config):
             actor_learner.learn_from_experience()
 
 
+# todo: render, 6 outputs in Pong, ALE bug?
+# todo: go through the code once more and make sure there are no bugs
 def get_training_args():
     parser = argparse.ArgumentParser()
 
@@ -218,6 +231,7 @@ def get_training_args():
     parser.add_argument("--log_freq", type=int, help="Log various metrics to tensorboard after this many env steps (None no logging)", default=1000)
     parser.add_argument("--episode_log_freq", type=int, help="Log various metrics to tensorboard after this many episodes (None no logging)", default=1)
     parser.add_argument("--checkpoint_freq", type=int, help="Save checkpoint model after this many env steps (None for no checkpointing)", default=10000)
+    parser.add_argument("--grads_log_freq", type=int, help="Log grad norms after this many weight update steps (None for no checkpointing)", default=10)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)
