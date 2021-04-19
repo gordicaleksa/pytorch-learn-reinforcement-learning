@@ -81,9 +81,10 @@ class ActorLearner:
         for _ in range(self.acting_learning_ratio):
             last_index = self.replay_buffer.store_frame(self.last_frame)
             observation = self.replay_buffer.fetch_last_observation()
-            # self.visualize_observation(observation)  # <- for debugging
             action = self.sample_action(observation)
             new_frame, reward, done, _ = self.env.step(action)
+            # self.visualize_observation(observation)  # <- for debugging
+            # self.env.render()
             self.replay_buffer.store_effect(last_index, action, reward, done)
             if done:
                 new_frame = self.env.reset()
@@ -106,6 +107,7 @@ class ActorLearner:
 
     def learn_from_experience(self):
         observations, actions, rewards, next_observations, dones = self.replay_buffer.fetch_random_observations(self.batch_size)
+        # self.visualize_observation(observations)
 
         # Better than detaching: in addition to target dqn not being a part of the computational graph it also
         # saves time/memory because we're not storing activations during forward propagation needed for the backprop
@@ -140,8 +142,8 @@ class ActorLearner:
 
     @staticmethod
     def visualize_observation(observation):
-        observation = observation[0].to('cpu').numpy()  # (1, C, H, W) -> (C, H, W)
-        stacked_frames = np.hstack([(img * 255).astype(np.uint8) for img in observation])  # (C, H, W) -> (H, C*W)
+        observation = observation[0].to('cpu').numpy()  # (B, C, H, W) -> (C, H, W)
+        stacked_frames = np.hstack([np.repeat((img * 255).astype(np.uint8)[:, :, np.newaxis], 3, axis=2) for img in observation])  # (C, H, W) -> (H, C*W, 3)
         plt.imshow(stacked_frames)
         plt.show()
         plt.close()
@@ -209,22 +211,29 @@ def train_dqn(config):
             actor_learner.learn_from_experience()
 
 
-# todo: render, 6 outputs in Pong, ALE bug?
+# todo: 6 outputs in Pong, ALE bug?
 # todo: go through the code once more and make sure there are no bugs
 def get_training_args():
     parser = argparse.ArgumentParser()
 
     # Training related
     parser.add_argument("--seed", type=int, help="Very important for reproducibility - set random seed", default=42)
-    parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='PongNoFrameskip-v4')  # todo: CartPole-v1
+    parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='BreakoutNoFrameskip-v4')  # todo: CartPole-v1
     parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=5000000)  # todo: 50000000
-    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=400000) # todo: 1M
     parser.add_argument("--acting_learning_ratio", type=int, help="Number of experience steps for every learning step", default=4)
-    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=10000)  # todo: 50000
-    parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
+    parser.add_argument("--learning_rate", type=float, default=1e-4)
+
+    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=33) # todo: 1M
+    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=33)  # todo: 50000
+    parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=1000)  # todo: 10000
+
+    # epsilon-greedy annealing params
+    parser.add_argument("--epsilon_start_value", type=float, default=1.)
+    parser.add_argument("--epsilon_end_value", type=float, default=0.1)
+    parser.add_argument("--epsilon_duration", type=int, default=50000)  # todo: 1000000
+
     parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
     parser.add_argument("--gamma", type=float, help="Discount factor", default=0.99)
-    parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument("--is_hard_target_update", action='store_true', help='perform hard target DQN update')
 
     # Logging/debugging/checkpoint related (helps a lot with experimentation)
@@ -232,11 +241,6 @@ def get_training_args():
     parser.add_argument("--episode_log_freq", type=int, help="Log various metrics to tensorboard after this many episodes (None no logging)", default=1)
     parser.add_argument("--checkpoint_freq", type=int, help="Save checkpoint model after this many env steps (None for no checkpointing)", default=10000)
     parser.add_argument("--grads_log_freq", type=int, help="Log grad norms after this many weight update steps (None for no checkpointing)", default=10)
-
-    # epsilon-greedy annealing params
-    parser.add_argument("--epsilon_start_value", type=float, default=1.)
-    parser.add_argument("--epsilon_end_value", type=float, default=0.1)
-    parser.add_argument("--epsilon_duration", type=int, default=50000)  # todo: 1000000
     args = parser.parse_args()
 
     # Wrapping training configuration into a dictionary

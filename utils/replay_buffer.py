@@ -9,6 +9,7 @@ import torch
 from utils.utils import get_env_wrapper
 
 
+# todo: refactor the PF, C, C' terminology of shapes
 class ReplayBuffer:
     """
     Since stable baselines 3 doesn't currently support a smart replay buffer (more concretely the "lazy frames" feature)
@@ -83,9 +84,13 @@ class ReplayBuffer:
         return observations, actions, rewards, next_observations, dones
 
     def fetch_last_observation(self):
+        # shape = (1, C, H, W)
         return self._postprocess_observation(
             self._fetch_observation((self.current_free_slot_index - 1) % self.max_buffer_size)
         )
+
+    def get_current_size(self):
+        return self.current_buffer_size
 
     #
     # Helper functions

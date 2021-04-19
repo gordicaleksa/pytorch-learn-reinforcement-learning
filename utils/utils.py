@@ -1,6 +1,8 @@
 import os
+import random
 
 
+import torch
 import git
 import gym
 import numpy as np
@@ -14,8 +16,7 @@ from gym.wrappers import Monitor
 #                         T.Scale(40, interpolation=Image.CUBIC),
 #                         T.ToTensor()])
 #
-#     # This is based on the code from gym.
-#     screen_width = 600
+#     # This is ']=[-'idth = 600
 #
 #     def get_cart_location():
 #         world_width = env.x_threshold * 2
@@ -78,7 +79,7 @@ class ChannelFirst(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(low=0, high=255, shape=new_shape, dtype=np.uint8)
 
     def observation(self, observation):
-        return np.swapaxes(observation, 2, 0)
+        return np.moveaxis(observation, 2, 0)  # shape: (H, W, C) -> (C, H, W)
 
 
 class LinearSchedule:
@@ -113,15 +114,18 @@ def get_training_state(training_config, model):
 
 
 def set_random_seeds(env, seed):
-    import torch
-    import random
-
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    random.seed(seed)
+    torch.manual_seed(seed)  # PyTorch
+    np.random.seed(seed)  # NumPy
+    random.seed(seed)  # Python
     # todo: AB test whether I get the same results with/without this line
     env.action_space.seed(seed)  # probably redundant but I found an article where somebody had a problem with this
-    env.seed(seed)
+    env.seed(seed)  # OpenAI gym
+
+    # todo: AB test impact on FPS metric
+    # Deterministic operations for CuDNN, it may impact performances
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 # Test utils
