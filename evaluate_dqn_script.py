@@ -10,15 +10,15 @@ from utils.constants import *
 from utils.replay_buffer import ReplayBuffer
 
 
-# todo: add video recording functionality
 if __name__ == '__main__':
     buffer_size = 100000
     epsilon_eval = 0.05
     env_id = 'BreakoutNoFrameskip-v4'
     model_name = 'dqn_BreakoutNoFrameskip-v4_ckpt_steps_5000000.pth'
+    should_record_video = True
 
     # Step 1: Prepare environment, replay buffer and schedule
-    env = utils.get_env_wrapper(env_id, record_video=True)
+    env = utils.get_env_wrapper(env_id, record_video=should_record_video)
     replay_buffer = ReplayBuffer(buffer_size)
     const_schedule = utils.ConstSchedule(epsilon_eval)  # lambda would also do - doing it like this for consistency
 
