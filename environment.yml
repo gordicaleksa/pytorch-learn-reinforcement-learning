@@ -1,0 +1,20 @@
+name: pytorch-dqn
+channels:
+  - defaults
+  - pytorch
+dependencies:
+  - python==3.8.5
+  - pip==21.0.1
+  - pytorch==1.8.1
+  - pip:
+    - matplotlib==3.3.3
+    - GitPython==3.1.2
+    - psutil==5.8.0
+    - stable-baselines3==1.0
+    - opencv-python==4.5.1.48
+    - jupyter==1.0.0
+    - numpy==1.19.2
+    - tensorboard==2.2.2
+    - gym==0.17.3
+# todo: somehow need to enable installing this package
+#    - https://github.com/Kojoley/atari-py/releases#egg=atary_py
