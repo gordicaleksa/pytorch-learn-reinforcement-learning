@@ -67,7 +67,8 @@ class ActorLearner:
         # todo: experiment with RMSProp, the only difference with Nature paper, btw they haven't specified LR
         # todo: I see some LR annealing in the original Lua imp
         # todo: read Adam and RMSProp papers
-        self.optimizer = Adam(dqn.parameters(), lr=config['learning_rate'])
+        self.optimizer = Adam(self.dqn.parameters(), lr=config['learning_rate'])
+        self.grad_clip_value = config['grad_clipping_value']
         self.learner_cnt = 0
         self.target_dqn_update_interval = config['target_dqn_update_interval']
         # should perform a hard or a soft update of target DQN weights
@@ -127,15 +128,19 @@ class ActorLearner:
 
         self.optimizer.zero_grad()
         loss.backward()
+
+        if self.grad_clip_value is not None:
+            nn.utils.clip_grad_norm_(self.dqn.parameters(), self.grad_clip_value)
+
         self.maybe_log_grads()
-        # todo: they only mentioned Huber loss in the paper but I see other imps clipping grads
-        #  lets log grads and if there is need add clipping
+
         self.optimizer.step()
         self.learner_cnt += 1
 
         # Periodically update the target DQN weights, coupled to weight updates and not env steps
         if self.learner_cnt % self.target_dqn_update_interval == 0:
             if self.hard_target_update:
+                print('update target DQN')
                 self.target_dqn.load_state_dict(self.dqn.state_dict())
             else:  # soft update
                 raise Exception(f'Not yet implemented')
@@ -217,20 +222,21 @@ def get_training_args():
     parser = argparse.ArgumentParser()
 
     # Training related
-    parser.add_argument("--seed", type=int, help="Very important for reproducibility - set random seed", default=42)
-    parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='BreakoutNoFrameskip-v4')  # todo: CartPole-v1
-    parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=5000000)  # todo: 50000000
+    parser.add_argument("--seed", type=int, help="Very important for reproducibility - set random seed", default=23)
+    parser.add_argument("--env_id", type=str, help="environment id for OpenAI gym", default='BreakoutNoFrameskip-v4')
+    parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=50000000)
     parser.add_argument("--acting_learning_ratio", type=int, help="Number of experience steps for every learning step", default=4)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
+    parser.add_argument("--grad_clipping_value", type=float, default=5)
 
-    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=33) # todo: 1M
-    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=33)  # todo: 50000
-    parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=1000)  # todo: 10000
+    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=1000000)
+    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=50000)
+    parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)
     parser.add_argument("--epsilon_end_value", type=float, default=0.1)
-    parser.add_argument("--epsilon_duration", type=int, default=50000)  # todo: 1000000
+    parser.add_argument("--epsilon_duration", type=int, default=1000000)
 
     parser.add_argument("--batch_size", type=int, help="Number of experiences in a batch (replay buffer)", default=32)
     parser.add_argument("--gamma", type=float, help="Discount factor", default=0.99)

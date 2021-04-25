@@ -114,18 +114,19 @@ def get_training_state(training_config, model):
 
 
 def set_random_seeds(env, seed):
-    torch.manual_seed(seed)  # PyTorch
-    np.random.seed(seed)  # NumPy
-    random.seed(seed)  # Python
-    # todo: AB test whether I get the same results with/without this line
-    env.action_space.seed(seed)  # probably redundant but I found an article where somebody had a problem with this
-    env.seed(seed)  # OpenAI gym
+    if seed is not None:
+        torch.manual_seed(seed)  # PyTorch
+        np.random.seed(seed)  # NumPy
+        random.seed(seed)  # Python
+        # todo: AB test whether I get the same results with/without this line
+        env.action_space.seed(seed)  # probably redundant but I found an article where somebody had a problem with this
+        env.seed(seed)  # OpenAI gym
 
-    # todo: AB test impact on FPS metric
-    # Deterministic operations for CuDNN, it may impact performances
-    if torch.cuda.is_available():
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        # todo: AB test impact on FPS metric
+        # Deterministic operations for CuDNN, it may impact performances
+        if torch.cuda.is_available():
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
 
 # Test utils

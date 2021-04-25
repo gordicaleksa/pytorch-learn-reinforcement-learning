@@ -171,6 +171,7 @@ class ReplayBuffer:
 
         available_memory = psutil.virtual_memory().available
         total_memory = self.frames.nbytes + self.actions.nbytes + self.rewards.nbytes + self.dones.nbytes
+        print(f'total memory = {to_GBs(total_memory)} GB, available memory = {to_GBs(available_memory)} GB')
 
         if total_memory > available_memory:
             message = f"Not enough memory to store the complete replay buffer! \n" \
