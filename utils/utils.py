@@ -47,7 +47,7 @@ from gym.wrappers import Monitor
 #         return resize(screen).unsqueeze(0).type(Tensor)
 
 
-def get_env_wrapper(env_id):
+def get_env_wrapper(env_id, record_video=False):
     """
         Ultimately it's not very clear why are SB3's wrappers and OpenAI gym's copy/pasted code for the most part.
         It seems that OpenAI gym doesn't have reward clipping which is necessary for Atari.
@@ -58,14 +58,14 @@ def get_env_wrapper(env_id):
     monitor_dump_dir = os.path.join(os.path.dirname(__file__), os.pardir, 'gym_monitor')
 
     if env_id == 'CartPole-v1':
-        env_wrapped = Monitor(gym.make(env_id), monitor_dump_dir, force=True, video_callable=False)
+        env_wrapped = Monitor(gym.make(env_id), monitor_dump_dir, force=True, video_callable=lambda episode: record_video)
     else:
         # This is necessary because AtariWrapper skips 4 frames by default, so we can't have additional skipping through
         # the environment itself - hence NoFrameskip requirement
         assert 'NoFrameskip' in env_id, f'Expected NoFrameskip environment got {env_id}'
 
         # The only additional thing needed is to convert the shape to channel-first because of PyTorch's models
-        env_wrapped = Monitor(ChannelFirst(AtariWrapper(gym.make(env_id))), monitor_dump_dir, force=True, video_callable=False)
+        env_wrapped = Monitor(ChannelFirst(AtariWrapper(gym.make(env_id))), monitor_dump_dir, force=True, video_callable=lambda episode: record_video)
 
     return env_wrapped
 
@@ -92,6 +92,25 @@ class LinearSchedule:
     def __call__(self, num_steps):
         progress = np.clip(num_steps / self.schedule_duration, a_min=None, a_max=1)
         return self.start_value + (self.end_value - self.start_value) * progress
+
+
+class ConstSchedule:
+    """ Used for DQN evaluation. """
+    def __init__(self, value):
+        self.value = value
+
+    def __call__(self, num_steps):
+        return self.value
+
+
+def print_model_metadata(training_state):
+    header = f'\n{"*"*5} DQN model training metadata: {"*"*5}'
+    print(header)
+
+    for key, value in training_state.items():
+        if key != 'state_dict':  # don't print state_dict it's a bunch of numbers...
+            print(f'{key}: {value}')
+    print(f'{"*" * len(header)}\n')
 
 
 def get_training_state(training_config, model):
