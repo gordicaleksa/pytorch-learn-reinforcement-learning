@@ -28,7 +28,7 @@ class ReplayBuffer:
         self.current_buffer_size = 0
         self.current_free_slot_index = 0
 
-        assert frame_shape[0] == 1 or frame_shape[0] == 3, f'Expected mono/color image frame got shape={frame_shape}.'
+        assert frame_shape[0] in (1, 3), f'Expected mono/color image frame got shape={frame_shape}.'
         self.frame_height = frame_shape[1]
         self.frame_width = frame_shape[2]
         self.num_previous_frames_to_fetch = num_last_frames_to_fetch
@@ -36,10 +36,10 @@ class ReplayBuffer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Create main buffer containers - all types are chosen so as to optimize memory consumption
-        self.frames = np.empty([self.max_buffer_size] + frame_shape, dtype=np.uint8)
-        self.actions = np.empty([self.max_buffer_size, 1], dtype=np.uint8)
-        self.rewards = np.empty([self.max_buffer_size, 1], dtype=np.float32)
-        self.dones = np.empty([self.max_buffer_size, 1], dtype=np.uint8)
+        self.frames = np.zeros([self.max_buffer_size] + frame_shape, dtype=np.uint8)
+        self.actions = np.zeros([self.max_buffer_size, 1], dtype=np.uint8)
+        self.rewards = np.zeros([self.max_buffer_size, 1], dtype=np.float32)
+        self.dones = np.zeros([self.max_buffer_size, 1], dtype=np.uint8)
 
         # Be aware that numpy does lazy execution so it can happen that after a while
         # you start hitting your RAM limit and your system will start page swapping hence the _check_enough_ram function
@@ -64,9 +64,9 @@ class ReplayBuffer:
         self.dones[index] = done
 
     def fetch_random_observations(self, batch_size):
-        assert self._has_enough_data(batch_size), f"Can't fetch observations from the replay buffer - not enough data."
-        # Uniform random. -1 because we always need to fetch the current and the next successive state for Q-learning,
-        # the last state in the buffer doesn't have a successive state
+        assert self._has_enough_data(batch_size), "Can't fetch observations from the replay buffer - not enough data."
+        # Uniform random sampling without replacement. -1 because we always need to fetch the current and the next
+        # successive state for Q-learning, the last state in the buffer doesn't have a successive state
         random_unique_indices = random.sample(range(self.current_buffer_size - 1), batch_size)
 
         observations = self._postprocess_observation(
@@ -143,7 +143,7 @@ class ReplayBuffer:
         # Handle the case where start index crosses the buffer head pointer - the data before and after the head pointer
         # belongs to completely different episodes
         if self._buffer_full():
-            if 0 < self.current_free_slot_index - start_index < self.num_previous_frames_to_fetch:
+            if 0 < (self.current_free_slot_index - start_index) % self.max_buffer_size < self.num_previous_frames_to_fetch:
                 start_index = self.current_free_slot_index
 
         return start_index
