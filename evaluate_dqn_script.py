@@ -1,13 +1,18 @@
 import os
+import shutil
 
 
 import torch
+import matplotlib.pyplot as plt
+import cv2 as cv
+import numpy as np
 
 
 import utils.utils as utils
 from models.definitions.DQN import DQN
 from utils.constants import *
 from utils.replay_buffer import ReplayBuffer
+from utils.video_utils import create_gif
 
 
 if __name__ == '__main__':
@@ -16,6 +21,10 @@ if __name__ == '__main__':
     env_id = 'BreakoutNoFrameskip-v4'
     model_name = 'dqn_BreakoutNoFrameskip-v4_ckpt_steps_6810000.pth'
     should_record_video = True
+    game_frames_dump_dir = os.path.join(DATA_DIR_PATH, 'dqn_eval_dump_dir')
+    if os.path.exists(game_frames_dump_dir):
+        shutil.rmtree(game_frames_dump_dir)
+    os.makedirs(game_frames_dump_dir, exist_ok=True)
 
     # Step 1: Prepare environment, replay buffer and schedule
     env = utils.get_env_wrapper(env_id, record_video=should_record_video)
@@ -37,6 +46,7 @@ if __name__ == '__main__':
     last_frame = env.reset()
 
     score = 0
+    cnt = 0
     while True:
         replay_buffer.store_frame(last_frame)
         current_state = replay_buffer.fetch_last_state()  # fetch the state, shape = (4, 84, 84) for Atari
@@ -48,9 +58,15 @@ if __name__ == '__main__':
         score += reward
 
         env.render()  # plot the current game frame
+        screen = env.render(mode='rgb_array')  # but also save it as an image
+        processed_screen = cv.resize(screen[:, :, ::-1], (0, 0), fx=1.5, fy=1.5, interpolation=cv.INTER_NEAREST)
+        cv.imwrite(os.path.join(game_frames_dump_dir, f'{str(cnt).zfill(5)}.jpg'), processed_screen)  # cv expects BGR hence ::-1
+        cnt += 1
 
         if done:
             print(f'Episode over, score = {score}.')
             break
 
         last_frame = new_frame  # set the last frame to the newly acquired frame from the env
+
+    create_gif(game_frames_dump_dir, os.path.join(DATA_DIR_PATH, f'{env_id}.gif'), fps=60)

@@ -36,12 +36,16 @@ I succeed in achieving the published results on:
 * Pong
 
 Having said that the experiments are still in progress, so feel free to contribute!
+* For some reason the models aren't learning very well so if you find a bug open up a PR! :heart:
+* If you decide to train the DQN using this repo on some other Atari game I'll gladly check-in your model!
 
-For some reason I currently can't achieve the published results if you find a bug open a PR - just keep in mind the coding style.
+### Current results - Breakout
 
-Current results:
 
-I'll checkin the fully-trained models as soon as I have them
+
+### Current results - Pong
+
+todo
 
 ## Setup
 
@@ -50,10 +54,10 @@ Let's get this thing running! Follow the next steps:
 1. `git clone https://github.com/gordicaleksa/pytorch-learn-reinforcement-learning`
 2. Open Anaconda console and navigate into project directory `cd path_to_repo`
 3. Run `conda env create` from project directory (this will create a brand new conda environment).
-4. Run `activate pytorch-gat` (for running scripts from your console or setup the interpreter in your IDE)
+4. Run `activate pytorch-rl-env` (for running scripts from your console or setup the interpreter in your IDE)
 
-# todo: somehow need to enable installing this package
-#    - https://github.com/Kojoley/atari-py/releases#egg=atary_py
+If you're on windows you'll additionally need to do this:
+`pip install https://github.com/Kojoley/atari-py/releases atary_py` to install gym's Atari dependencies.
 
 That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies. <br/>
 
