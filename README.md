@@ -1,21 +1,47 @@
 ## Reinforcement Learning (PyTorch) :robot: + :cake: = :heart:
-This repo contains PyTorch implementation of various RL algorithms. <br/>
+
+This repo will contain PyTorch implementation of various fundamental RL algorithms. <br/>
 It's aimed at making it **easy** to start playing and learning about RL. <br/>
 
+The problem I came across investigating other DQN projects is that they either:
+* Don't have any evidence that they've actually achieved the published results 
+* Don't have a "smart" replay buffer (i.e. they allocate (1M, 4, 84, 84) bytes instead of (1M, 84, 84) ~ 7 GB)
+* Lack of visualizations and debugging utils
+
+This repo will aim to solve these problems.
+
 ## Table of Contents
-* [Policy gradient](#policy-gradient)
 * [DQN](#dqn)
-* [PPO](#ppo)
 * [Setup](#setup)
 * [Usage](#usage)
 * [Hardware requirements](#hardware-requirements)
 * [Learning material](#learning-material)
-    
-## Policy gradient
 
 ## DQN
 
-## PPO
+This was the project that started the revolution in the RL world - deep Q-network (:link: [Mnih et al.](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)),
+aka "Human-level control through deep RL".
+
+DQN model learned to play 29 Atari games (out of 49 they it tested on) on a **super-human**/comparable-to-humans level.
+
+<p align="center">
+<img src="data/readme_pics/dqn.jpg" width="800"/>
+</p>
+
+---
+
+Since it takes lots of compute and time to train all of the 49 models I'll consider this DQN project completed once
+I succeed in achieving the published results on:
+* Breakout
+* Pong
+
+Having said that the experiments are still in progress, so feel free to contribute!
+
+For some reason I currently can't achieve the published results if you find a bug open a PR - just keep in mind the coding style.
+
+Current results:
+
+I'll checkin the fully-trained models as soon as I have them
 
 ## Setup
 
@@ -25,6 +51,9 @@ Let's get this thing running! Follow the next steps:
 2. Open Anaconda console and navigate into project directory `cd path_to_repo`
 3. Run `conda env create` from project directory (this will create a brand new conda environment).
 4. Run `activate pytorch-gat` (for running scripts from your console or setup the interpreter in your IDE)
+
+# todo: somehow need to enable installing this package
+#    - https://github.com/Kojoley/atari-py/releases#egg=atary_py
 
 That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies. <br/>
 
