@@ -188,13 +188,13 @@ class ReplayBuffer:
 if __name__ == '__main__':
     size = 500000
     num_of_collection_steps = 10000
-    observations_batch_size = 32
+    batch_size = 32
 
     # Step 0: Create replay buffer and the env
     replay_buffer = ReplayBuffer(size)
 
     # NoFrameskip - receive every frame from the env whereas the version without NoFrameskip would give every 4th frame
-    # v4 - actions we send to env are executed, whereas v0 would execute the last action we sent with 0.25 probability
+    # v4 - actions we send to env are executed, whereas v0 would ignore the last action we sent with 0.25 probability
     env_id = "PongNoFrameskip-v4"
     env = get_env_wrapper(env_id)
 
@@ -203,6 +203,7 @@ if __name__ == '__main__':
 
     for i in range(num_of_collection_steps):
         random_action = env.action_space.sample()
+
         # For some reason for Pong gym returns more than 3 actions.
         print(f'Sampling action {random_action} - {env.unwrapped.get_action_meanings()[random_action]}')
 
@@ -214,7 +215,7 @@ if __name__ == '__main__':
         if done:
             env.reset()
 
-    # Step 2: Fetch observations from the buffer
-    observations, actions, rewards, next_observations, dones = replay_buffer.fetch_random_states(observations_batch_size)
+    # Step 2: Fetch states from the buffer
+    states, actions, rewards, next_states, dones = replay_buffer.fetch_random_states(batch_size)
 
-    print(observations.shape, next_observations.shape, actions.shape, rewards.shape, dones.shape)
+    print(states.shape, next_states.shape, actions.shape, rewards.shape, dones.shape)

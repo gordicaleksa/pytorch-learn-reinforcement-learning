@@ -68,13 +68,13 @@ class DQN(nn.Module):
             *fc_modules
         )
 
-    def forward(self, observations):
+    def forward(self, states):
         # shape: (B, C, H, W) -> (B, NA) - where NA is the Number of Actions
-        return self.fc_part(self.cnn_part(observations))
+        return self.fc_part(self.cnn_part(states))
 
-    def epsilon_greedy(self, observation):
+    def epsilon_greedy(self, state):
         assert self.epsilon_schedule is not None, f"No schedule provided, can't call epsilon_greedy function"
-        assert observation.shape[0] == 1, f'Agent can only act on a single observation'
+        assert state.shape[0] == 1, f'Agent can only act on a single state'
         self.num_calls_to_epsilon_greedy += 1
 
         # Epsilon-greedy exploration
@@ -84,7 +84,7 @@ class DQN(nn.Module):
         else:
             # Otherwise act greedily - choosing an action that maximizes Q
             # Shape evolution: (1, C, H, W) -> (forward) (1, NA) -> (argmax) (1, 1) -> [0] scalar
-            action = self.forward(observation).argmax(dim=1)[0].cpu().numpy()
+            action = self.forward(state).argmax(dim=1)[0].cpu().numpy()
 
         return action
 
@@ -111,7 +111,7 @@ class DQN(nn.Module):
 # Test DQN network
 if __name__ == '__main__':
     # NoFrameskip - receive every frame from the env whereas the version without NoFrameskip would give every 4th frame
-    # v4 - actions we send to env are executed, whereas v0 would execute the last action we sent with 0.25 probability
+    # v4 - actions we send to env are executed, whereas v0 would ignore the last action we sent with 0.25 probability
     env_id = "PongNoFrameskip-v4"
     env_wrapped = get_env_wrapper(env_id)
     dqn = DQN(env_wrapped)  # testing only the __init__ function (mainly the automatic shape calculation mechanism)
