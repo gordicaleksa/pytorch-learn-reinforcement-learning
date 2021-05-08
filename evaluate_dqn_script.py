@@ -39,12 +39,14 @@ if __name__ == '__main__':
     score = 0
     while True:
         replay_buffer.store_frame(last_frame)
-        observation = replay_buffer.fetch_last_state()  # fetch the observation, shape = (4, 84, 84) for Atari
+        current_state = replay_buffer.fetch_last_state()  # fetch the state, shape = (4, 84, 84) for Atari
+
         with torch.no_grad():
-            action = dqn.epsilon_greedy(observation)  # act on the observation
+            action = dqn.epsilon_greedy(current_state)  # act in this state
 
         new_frame, reward, done, _ = env.step(action)  # send the action to the environment
         score += reward
+
         env.render()  # plot the current game frame
 
         if done:
