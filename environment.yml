@@ -16,5 +16,3 @@ dependencies:
     - numpy==1.19.2
     - tensorboard==2.2.2
     - gym==0.17.3
-# todo: somehow need to enable installing this package
-#    - https://github.com/Kojoley/atari-py/releases#egg=atary_py
