@@ -6,6 +6,8 @@
 # todo: log episode lengths, value function estimates, min/max/mean/std cumulative rewards, epsilon
 # todo: I'm not sure how much training on Atari will take (wallclock time) for 200M frames, try a simpler env initially
 # todo: reach OpenAI baseline performance
+# todo: 6 outputs in Pong, ALE bug?
+
 
 # todo: experiment with RMSProp, the only difference with Nature paper
         # todo: I see some LR annealing in the original Lua imp
