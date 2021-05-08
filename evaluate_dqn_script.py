@@ -14,7 +14,7 @@ if __name__ == '__main__':
     buffer_size = 100000
     epsilon_eval = 0.05
     env_id = 'BreakoutNoFrameskip-v4'
-    model_name = 'dqn_BreakoutNoFrameskip-v4_ckpt_steps_5000000.pth'
+    model_name = 'dqn_BreakoutNoFrameskip-v4_ckpt_steps_6810000.pth'
     should_record_video = True
 
     # Step 1: Prepare environment, replay buffer and schedule
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     score = 0
     while True:
         replay_buffer.store_frame(last_frame)
-        observation = replay_buffer.fetch_last_observation()  # fetch the observation, shape = (4, 84, 84) for Atari
+        observation = replay_buffer.fetch_last_state()  # fetch the observation, shape = (4, 84, 84) for Atari
         with torch.no_grad():
             action = dqn.epsilon_greedy(observation)  # act on the observation
 

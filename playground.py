@@ -12,13 +12,10 @@ import numpy as np
 import cv2 as cv
 from stable_baselines3.common.atari_wrappers import AtariWrapper
 
-# todo: set random seeds (python, np, torch, gym, ?)
-# env.action_space.seed(RANDOM_SEED), env.seed(RANDOM_SEED) <- both are needed?
 # todo: maybe add a minimal version and a fully blown version with all of the nitty-gritty details
 # todo: test the replay buffer, visualize images from the buffer
 # todo: test Adam vs RMSProp
 # todo: checkin trained DQN
-# todo: leverage gym's wrappers instead of writing the code for e.g. scaling rewards inside the loop
 # todo: try out gym's Monitor and env.ale.lives will that make sense for every env?
 # todo: is gradient clipping in the param domain equivalent to clipping of the MSE loss?
 # todo: log episode lengths, value function estimates, min/max/mean/std cumulative rewards, epsilon
@@ -76,7 +73,7 @@ class QNetwork(nn.Module):
         with torch.no_grad():
             n_flatten = self.cnn(torch.as_tensor(observation_space.sample()[None]).float()).shape[1]
 
-        self.fc1 = nn.Linear(num_of_filters[3] * 7 * 7, 512)  # todo: make the padding same?
+        self.fc1 = nn.Linear(num_of_filters[3] * 7 * 7, 512)
         self.fc2 = nn.Linear(512, number_of_actions)
 
         self.relu = nn.ReLU()
@@ -90,103 +87,102 @@ class QNetwork(nn.Module):
         x = self.fc2(x)
         return x
 
-    # todo: pass input shape and calculate self.fc1 input number of features automatically or via forward pass
-
 
 def atari_preprocess(img, current_state, tmp_input_buffer):
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     gray_resized = cv.resize(img, (ATARI_INPUT[0], ATARI_INPUT[1]), interpolation=cv.INTER_CUBIC)
-    # todo: add handling Atari flicker looking at older image in input_buffer
     return gray_resized
 
 
 def atari_fetch_input(input_buffer):
     imgs = input_buffer[-4:]
-    # todo: convert to PyTorch tensor
     return torch.from_numpy(imgs)
 
 
 if __name__ == '__main__':
-    # # 1. It renders instance for 500 timesteps, perform random actions
-    # env = gym.make('Pong-v4')
-    # env.reset()
-    # for _ in range(500):
-    #     env.render()
-    #     observation, reward, done, info = env.step(env.action_space.sample())
+    # # # 1. It renders instance for 500 timesteps, perform random actions
+    # # env = gym.make('Pong-v4')
+    # # env.reset()
+    # # for _ in range(500):
+    # #     env.render()
+    # #     observation, reward, done, info = env.step(env.action_space.sample())
+    # #
+    # # # 2. To check all env available, uninstalled ones are also shown
+    # # for el in envs.registry.all():
+    # #     print(el)
     #
-    # # 2. To check all env available, uninstalled ones are also shown
-    # for el in envs.registry.all():
-    #     print(el)
-
-    env = AtariWrapper(gym.make("Pong-v4"))
-
-    model = DQN("CnnPolicy", env, verbose=1)
-    model.learn(total_timesteps=10000)
-
+    # env = AtariWrapper(gym.make("Pong-v4"))
     #
-    # obs = env.reset()
-    # for i in range(1000):
-    #     action, _states = model.predict(obs, deterministic=True)
-    #     obs, reward, done, info = env.step(action)
-    #     env.render()
-    #     if done:
-    #         obs = env.reset()
+    # model = DQN("CnnPolicy", env, verbose=1)
+    # model.learn(total_timesteps=10000)
+    #
+    # #
+    # # obs = env.reset()
+    # # for i in range(1000):
+    # #     action, _states = model.predict(obs, deterministic=True)
+    # #     obs, reward, done, info = env.step(action)
+    # #     env.render()
+    # #     if done:
+    # #         obs = env.reset()
+    # #
+    # # env.close()
+    #
+    # env = gym.make("Pong-v4")
+    # obs_space = env.observation_space.sample() # [None]
+    # tmp = obs_space[None]
+    #
+    # number_of_actions = env.action_space.n
+    # NUM_EPISODES = 1000
+    # current_episode = 0
+    # TARGET_DQN_UPDATE_FREQ = 10
+    # discount_factor = 0.99
+    #
+    # dqn_current = DQN(number_of_actions=number_of_actions)
+    # dqn_target = DQN(number_of_actions=number_of_actions)
+    # optimizer = Adam(dqn_current.parameters())
+    #
+    # replay_buffer = ReplayBuffer()
+    # num_sticky_actions = 4
+    #
+    # while current_episode < NUM_EPISODES:
+    #     observation = env.reset()
+    #
+    #     end_of_episode = False
+    #     while not end_of_episode:
+    #         current_state = replay_buffer.fetch_last()
+    #         action = dqn_current(current_state) if len(replay_buffer) > 0 else env.action_space.sample()
+    #
+    #         tmp_input_buffer = []
+    #         state_reward = 0
+    #         for _ in range(num_sticky_actions):  # sticky actions i.e. repeat the last action num_sticky_actions times
+    #             observation, reward, done, info = env.step(action)
+    #             env.render()
+    #
+    #             tmp_input_buffer.append(atari_preprocess(observation, current_state, tmp_input_buffer))
+    #             state_reward += reward
+    #
+    #             if done:
+    #                 end_of_episode = True
+    #                 current_episode += 1
+    #
+    #         replay_buffer.update_last((action, state_reward))
+    #         replay_buffer.append(tmp_input_buffer)
+    #
+    #         state, action, reward, next_state = replay_buffer.pop()
+    #         q_target = reward + discount_factor * max(dqn_target(next_state))
+    #         loss = nn.MSELoss()(dqn_current(state)[action], q_target)
+    #
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
+    #
+    #     if current_episode % TARGET_DQN_UPDATE_FREQ:
+    #         dqn_target = copy.deepcopy(dqn_current)
     #
     # env.close()
 
-    env = gym.make("Pong-v4")
-    obs_space = env.observation_space.sample() # [None]
-    tmp = obs_space[None]
-
-    number_of_actions = env.action_space.n
-    NUM_EPISODES = 1000
-    current_episode = 0
-    TARGET_DQN_UPDATE_FREQ = 10
-    discount_factor = 0.99
-    # todo: add epsilon annealing range
-
-    dqn_current = DQN(number_of_actions=number_of_actions)
-    dqn_target = DQN(number_of_actions=number_of_actions)
-    optimizer = Adam(dqn_current.parameters())  # todo: RMSProp
-
-    replay_buffer = ReplayBuffer()
-    num_sticky_actions = 4
-
-    while current_episode < NUM_EPISODES:
-        observation = env.reset()
-
-        end_of_episode = False
-        while not end_of_episode:
-            current_state = replay_buffer.fetch_last()
-            # todo: add epsilon greedy
-            action = dqn_current(current_state) if len(replay_buffer) > 0 else env.action_space.sample()
-
-            tmp_input_buffer = []
-            state_reward = 0
-            for _ in range(num_sticky_actions):  # sticky actions i.e. repeat the last action num_sticky_actions times
-                observation, reward, done, info = env.step(action)
-                env.render()
-
-                tmp_input_buffer.append(atari_preprocess(observation, current_state, tmp_input_buffer))
-                state_reward += reward
-
-                if done:
-                    end_of_episode = True
-                    current_episode += 1
-
-            replay_buffer.update_last((action, state_reward))
-            replay_buffer.append(tmp_input_buffer)
-
-            # todo: add update function
-            state, action, reward, next_state = replay_buffer.pop()
-            q_target = reward + discount_factor * max(dqn_target(next_state))
-            loss = nn.MSELoss()(dqn_current(state)[action], q_target)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        if current_episode % TARGET_DQN_UPDATE_FREQ:
-            dqn_target = copy.deepcopy(dqn_current)
-
-    env.close()
+    tmp = torch.rand((3, 3))
+    print(tmp)
+    t = 0.001
+    tmp.clamp_(-t, t)
+    print(tmp)

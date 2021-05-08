@@ -64,9 +64,8 @@ class ActorLearner:
         self.loss = nn.SmoothL1Loss()
         self.batch_size = config['batch_size']
         self.gamma = config['gamma']
-        # todo: experiment with RMSProp, the only difference with Nature paper, btw they haven't specified LR
+        # todo: experiment with RMSProp, the only difference with Nature paper
         # todo: I see some LR annealing in the original Lua imp
-        # todo: read Adam and RMSProp papers
         self.optimizer = Adam(self.dqn.parameters(), lr=config['learning_rate'])
         self.grad_clip_value = config['grad_clipping_value']
         self.learner_cnt = 0
@@ -81,12 +80,12 @@ class ActorLearner:
         # We're collecting more experience than we're doing weight updates (4x in the Nature paper)
         for _ in range(self.acting_learning_ratio):
             last_index = self.replay_buffer.store_frame(self.last_frame)
-            observation = self.replay_buffer.fetch_last_observation()
+            observation = self.replay_buffer.fetch_last_state()
             action = self.sample_action(observation)
             new_frame, reward, done, _ = self.env.step(action)
             # self.visualize_observation(observation)  # <- for debugging
             # self.env.render()
-            self.replay_buffer.store_effect(last_index, action, reward, done)
+            self.replay_buffer.store_action_reward_done(last_index, action, reward, done)
             if done:
                 new_frame = self.env.reset()
                 self.maybe_log_episode()
@@ -107,7 +106,7 @@ class ActorLearner:
         return self.env.get_total_steps()
 
     def learn_from_experience(self):
-        observations, actions, rewards, next_observations, dones = self.replay_buffer.fetch_random_observations(self.batch_size)
+        observations, actions, rewards, next_observations, dones = self.replay_buffer.fetch_random_states(self.batch_size)
         # self.visualize_observation(observations)
 
         # Better than detaching: in addition to target dqn not being a part of the computational graph it also
@@ -209,7 +208,8 @@ def train_dqn(config):
     actor_learner = ActorLearner(config, env, replay_buffer, dqn, target_dqn, env.reset())
 
     while actor_learner.get_experience_cnt() < config['num_of_training_steps']:
-
+        if actor_learner.get_experience_cnt() % 10000 == 0:
+            print(f'steps = {actor_learner.get_experience_cnt()}')
         actor_learner.collect_experience()
 
         if actor_learner.get_experience_cnt() > config['start_learning']:
@@ -229,8 +229,8 @@ def get_training_args():
     parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument("--grad_clipping_value", type=float, default=5)
 
-    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=1000000)
-    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=50000)
+    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=600000) # todo: 1M
+    parser.add_argument("--start_learning", type=int, help="Number of steps before learning starts", default=10000)  # todo: 50000
     parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
 
     # epsilon-greedy annealing params
