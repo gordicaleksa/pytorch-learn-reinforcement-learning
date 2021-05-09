@@ -177,7 +177,8 @@ class ReplayBuffer:
         if required_memory > available_memory:
             message = f"Not enough memory to store the complete replay buffer! \n" \
                       f"required: {to_GBs(required_memory)} > available: {to_GBs(available_memory)} \n" \
-                      f"Page swapping will make your training super slow once you hit your RAM limit."
+                      f"Page swapping will make your training super slow once you hit your RAM limit." \
+                      f"You can either modify replay_buffer_size argument or set crash_if_no_mem to False to ignore it."
             if crash_if_no_mem:
                 raise Exception(message)
             else:

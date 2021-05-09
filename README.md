@@ -44,9 +44,15 @@ I succeed in achieving the published results on:
 * Breakout
 * Pong
 
+---
+
 Having said that the experiments are still in progress, so feel free to **contribute**!
 * For some reason the models aren't learning very well so if you find a bug open up a PR! :heart:
+* I'm also experiencing slowdowns - so any PRs that would improve/explain the perf are welcome!
 * If you decide to train the DQN using this repo on some other Atari game I'll gladly check-in your model!
+
+**Important note: please follow the coding guidelines of this repo before you submit a PR so that we can minimize
+the back-and-forth. I'm a decently busy guy as I assume you are.**
 
 ### Current results - Breakout
 
@@ -72,7 +78,7 @@ Let's get this thing running! Follow the next steps:
 If you're on Windows you'll additionally need to install this:
 `pip install https://github.com/Kojoley/atari-py/releases atary_py` to install gym's Atari dependencies.
 
-Otherwise this should do it `pip install 'gym[atari]'`, if not check out [this](https://stackoverflow.com/questions/49947555/openai-gym-trouble-installing-atari-dependency-mac-os-x) and [this](https://github.com/openai/gym/issues/1170).
+Otherwise this should do it `pip install 'gym[atari]'`, if it's not working check out [this](https://stackoverflow.com/questions/49947555/openai-gym-trouble-installing-atari-dependency-mac-os-x) and [this](https://github.com/openai/gym/issues/1170).
 
 That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies. <br/>
 
@@ -93,6 +99,32 @@ Coming soon.
 #### Option 2: Use your IDE of choice
 
 You just need to link the Python environment you created in the [setup](#setup) section.
+
+## Training DQN
+
+To run with default settings just run `python train_DQN_script.py`.
+
+Settings you'll want to experiment with:
+* `seed` - it may just so happen that I've chosen a bad one (RL is very sensitive)
+* `learning_rate` - DQN originally used RMSProp, I saw that Adam with 1e-4 worked for stable baselines 3
+* `grad_clipping_value` - there was [a lot of noise](#visualization-tools) in the gradients so I used this to control it
+* Try using RMSProp (I haven't yet). Adam was an improvement over RMSProp so I doubt it's causing the issues
+
+Less important settings for getting DQN to work:
+* `env_id` - depending on which game you want to train on (I'd focus on the easiest one for now - Breakout)
+* `replay_buffer_size` - hopefully you can train DQN with 1M, as in the original paper, if not make it smaller
+* `crash_if_no_mem` - set to `False` if you want to run with 1M replay buffer even if you don't have enough RAM
+
+The training script will:
+* Dump checkpoint *.pth models into `models/checkpoints/`
+* Dump the final *.pth model into `models/binaries/` <- TODO
+* Save metrics into `runs/`, just run `tensorboard --logdir=runs` from your Anaconda to visualize it
+* Periodically write some training metadata to the console
+
+## Visualization tools
+
+You can visualize the metrics during the training, by calling `tensorboard --logdir=runs` from your console
+and pasting the `http://localhost:6006/` URL into your browser:
 
 ## Hardware requirements
 

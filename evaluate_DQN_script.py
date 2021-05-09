@@ -16,11 +16,13 @@ from utils.video_utils import create_gif
 
 
 if __name__ == '__main__':
+    # Step 0: Modify these as needed
     buffer_size = 100000
     epsilon_eval = 0.05
     env_id = 'BreakoutNoFrameskip-v4'
     model_name = 'dqn_BreakoutNoFrameskip-v4_ckpt_steps_6810000.pth'
     should_record_video = True
+
     game_frames_dump_dir = os.path.join(DATA_DIR_PATH, 'dqn_eval_dump_dir')
     if os.path.exists(game_frames_dump_dir):
         shutil.rmtree(game_frames_dump_dir)

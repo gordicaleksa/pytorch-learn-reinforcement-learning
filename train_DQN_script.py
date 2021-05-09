@@ -67,7 +67,7 @@ class ActorLearner:
         self.learner_cnt = 0
         self.target_dqn_update_interval = config['target_dqn_update_interval']
         # should perform a hard or a soft update of target DQN weights
-        self.hard_target_update = config['hard_target_update']
+        self.tau = config['tau']
 
     def collect_experience(self):
         # We're collecting more experience than we're doing weight updates (4x in the Nature paper)
@@ -134,11 +134,11 @@ class ActorLearner:
 
         # Periodically update the target DQN weights (coupled to the number of DQN weight updates and not # env steps)
         if self.learner_cnt % self.target_dqn_update_interval == 0:
-            if self.hard_target_update:
-                print('update target DQN')
+            if self.tau == 1.:
+                print('Update target DQN (hard update)')
                 self.target_dqn.load_state_dict(self.dqn.state_dict())
-            else:  # soft update
-                raise Exception(f'Not yet implemented')
+            else:  # soft update, the 2 branches can be merged together, leaving it like this for now
+                raise Exception(f'Soft update is not yet implemented (hard update was used in the original paper)')
 
     @staticmethod
     def visualize_state(state):
@@ -162,20 +162,21 @@ class ActorLearner:
     def maybe_log(self):
         num_steps = self.env.get_total_steps()
 
-        if self.log_freq is not None and num_steps % self.log_freq == 0:
+        if self.log_freq is not None and num_steps > 0 and num_steps % self.log_freq == 0:
             self.tensorboard_writer.add_scalar('Epsilon', self.dqn.epsilon_value(), num_steps)
-            self.tensorboard_writer.add_scalar('Huber loss', np.mean(self.huber_loss), num_steps)
+            if len(self.huber_loss) > 0:
+                self.tensorboard_writer.add_scalar('Huber loss', np.mean(self.huber_loss), num_steps)
             self.tensorboard_writer.add_scalar('FPS', num_steps / (time.time() - self.start_time), num_steps)
 
             self.huber_loss = []  # clear the loss values and start recollecting them again
 
         # Periodically save DQN models
-        if self.checkpoint_freq is not None and num_steps % self.checkpoint_freq == 0:
+        if self.checkpoint_freq is not None and num_steps > 0 and num_steps % self.checkpoint_freq == 0:
             ckpt_model_name = f'dqn_{self.config["env_id"]}_ckpt_steps_{num_steps}.pth'
             torch.save(utils.get_training_state(self.config, self.dqn), os.path.join(CHECKPOINTS_PATH, ckpt_model_name))
 
         # Log the gradients
-        if self.grads_log_freq is not None and self.learner_cnt % self.grads_log_freq == 0:
+        if self.grads_log_freq is not None and self.learner_cnt > 0 and self.learner_cnt % self.grads_log_freq == 0:
             total_grad_l2_norm = 0
 
             for cnt, (name, weight_or_bias_parameters) in enumerate(self.dqn.named_parameters()):
@@ -193,7 +194,7 @@ class ActorLearner:
 
 def train_dqn(config):
     env = utils.get_env_wrapper(config['env_id'])
-    replay_buffer = ReplayBuffer(config['replay_buffer_size'])
+    replay_buffer = ReplayBuffer(config['replay_buffer_size'], crash_if_no_mem=config['crash_if_no_mem'])
 
     utils.set_random_seeds(env, config['seed'])
 
@@ -232,15 +233,16 @@ def get_training_args():
     parser.add_argument("--num_of_training_steps", type=int, help="Number of training env steps", default=50000000)
     parser.add_argument("--acting_learning_step_ratio", type=int, help="Number of experience collection steps for every learning step", default=4)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
-    parser.add_argument("--grad_clipping_value", type=float, default=5)
+    parser.add_argument("--grad_clipping_value", type=float, default=5)  # 5 is fairly arbitrarily chosen
 
-    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=300000) # todo: 1M
-    parser.add_argument("--num_warmup_steps", type=int, help="Number of steps before learning starts", default=10000)  # todo: 50000
+    parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=1000000)
+    parser.add_argument("--crash_if_no_mem", type=bool, help="Optimization - crash if not enough RAM before the training even starts", default=True)
+    parser.add_argument("--num_warmup_steps", type=int, help="Number of steps before learning starts", default=50000)
     parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
 
     parser.add_argument("--batch_size", type=int, help="Number of states in a batch (from replay buffer)", default=32)
     parser.add_argument("--gamma", type=float, help="Discount factor", default=0.99)
-    parser.add_argument("--hard_target_update", action='store_true', help='Perform hard target DQN update (otherwise soft)')
+    parser.add_argument("--tau", type=float, help='Set to 1 for a hard target DQN update, < 1 for a soft one', default=1.)
 
     # epsilon-greedy annealing params
     parser.add_argument("--epsilon_start_value", type=float, default=1.)
@@ -248,11 +250,11 @@ def get_training_args():
     parser.add_argument("--epsilon_duration", type=int, default=1000000)
 
     # Logging/debugging/checkpoint related (helps a lot with experimentation)
-    parser.add_argument("--log_freq", type=int, help="Log various metrics to tensorboard after this many env steps (None no logging)", default=10000)
-    parser.add_argument("--console_log_freq", type=int, help="Log to console after this many env steps (None no logging)", default=10000)
-    parser.add_argument("--episode_log_freq", type=int, help="Log various metrics to tensorboard after this many episodes (None no logging)", default=5)
-    parser.add_argument("--checkpoint_freq", type=int, help="Save checkpoint model after this many env steps (None for no checkpointing)", default=10000)
-    parser.add_argument("--grads_log_freq", type=int, help="Log grad norms after this many weight update steps (None for no checkpointing)", default=2500)
+    parser.add_argument("--console_log_freq", type=int, help="Log to console after this many env steps (None = no logging)", default=10000)
+    parser.add_argument("--log_freq", type=int, help="Log metrics to tensorboard after this many env steps (None = no logging)", default=10000)
+    parser.add_argument("--episode_log_freq", type=int, help="Log metrics to tensorboard after this many episodes (None = no logging)", default=5)
+    parser.add_argument("--checkpoint_freq", type=int, help="Save checkpoint model after this many env steps (None = no checkpointing)", default=10000)
+    parser.add_argument("--grads_log_freq", type=int, help="Log grad norms after this many weight update steps (None = no logging)", default=2500)
     parser.add_argument("--debug", action='store_true', help='Train in debugging mode')
     args = parser.parse_args()
 
