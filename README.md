@@ -5,32 +5,41 @@ It's aimed at making it **easy** to start playing and learning about RL. <br/>
 
 The problem I came across investigating other DQN projects is that they either:
 * Don't have any evidence that they've actually achieved the published results 
-* Don't have a "smart" replay buffer (i.e. they allocate (1M, 4, 84, 84) bytes instead of (1M, 84, 84) ~ 7 GB)
+* Don't have a "smart" replay buffer (i.e. they allocate (1M, 4, 84, 84) ~ 28 GBs! instead of (1M, 84, 84) ~ 7 GB)
 * Lack of visualizations and debugging utils
 
 This repo will aim to solve these problems.
 
 ## Table of Contents
-* [DQN](#dqn)
+* [RL agents](#rl-agents)
+    * [DQN](#dqn)
+    * [DQN current results](#dqn-current-results)
 * [Setup](#setup)
 * [Usage](#usage)
 * [Hardware requirements](#hardware-requirements)
+* [Future todos](#future-todos)
 * [Learning material](#learning-material)
+
+## RL agents 
 
 ## DQN
 
-This was the project that started the revolution in the RL world - deep Q-network (:link: [Mnih et al.](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)),
+This was the project that started the revolution in the RL world - deep Q-network (:link: [Mnih et al.](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)), <br/>
 aka "Human-level control through deep RL".
 
 DQN model learned to play **29 Atari games** (out of 49 they it tested on) on a **super-human**/comparable-to-humans level.
+Here is the schematic of it's CNN architecture:
 
 <p align="center">
 <img src="data/readme_pics/dqn.jpg" width="800"/>
 </p>
 
----
+The fascinating part is that it learned only from "high-dimensional" (84x84) images and (usually sparse) rewards.
+The same architecture was used for all of the 49 games - although the model has to be retrained, from scratch, every single time.
 
-Since it takes lots of compute and time to train all of the 49 models I'll consider this DQN project completed once
+## DQN current results
+
+Since it takes [lots of compute and time](#hardware-requirements) to train all of the 49 models I'll consider this DQN project completed once
 I succeed in achieving the published results on:
 * Breakout
 * Pong
@@ -87,9 +96,9 @@ You just need to link the Python environment you created in the [setup](#setup) 
 
 ## Hardware requirements
 
-You'll need some decent hardware to train the DQN in reasonable time so that you can iterate:
+You'll need some decent hardware to train the DQN in reasonable time so that you can iterate fast:
 1) **16+ GB of RAM** (Replay Buffer takes around ~7 GBs of RAM).
-2) The faster your GPU is - the better (well duh). Having said that VRAM is not the bottleneck you'll need **~ 2 GB VRAM**.
+2) The faster your GPU is - the better! :sweat_smile: Having said that VRAM is not the bottleneck you'll need **2+ GB VRAM**.
 
 With 16 GB RAM and RTX 2080 it takes ~5 days to train DQN on my machine - I'm **experiencing some slowdowns** which I
 haven't debugged yet. Here is the FPS (frames-per-second) metric I'm logging:
@@ -99,6 +108,12 @@ haven't debugged yet. Here is the FPS (frames-per-second) metric I'm logging:
 </p>
 
 The shorter, green one is the current experiment I'm running, the red one took over 5 days to train.
+
+## Future todos
+
+1) Debug DQN and achieve the published results
+2) Add Vanilla PG
+3) Add PPO
 
 ## Learning material
 
