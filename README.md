@@ -16,6 +16,8 @@ This repo will aim to solve these problems.
     * [DQN current results](#dqn-current-results)
 * [Setup](#setup)
 * [Usage](#usage)
+    * [Training DQN](#training-dqn)
+    * [Visualization and debugging tools](#visualization-and-debugging-tools)
 * [Hardware requirements](#hardware-requirements)
 * [Future todos](#future-todos)
 * [Learning material](#learning-material)
@@ -57,7 +59,7 @@ the back-and-forth. I'm a decently busy guy as I assume you are.**
 ### Current results - Breakout
 
 <p align="center">
-<img src="data/gifs/BreakoutNoFrameskip-v4_1.gif" />
+<img src="data/readme_gifs/BreakoutNoFrameskip-v4_1.gif" />
 </p>
 
 As you can see the model did learn something although it's far from being really good.
@@ -105,26 +107,47 @@ You just need to link the Python environment you created in the [setup](#setup) 
 To run with default settings just run `python train_DQN_script.py`.
 
 Settings you'll want to experiment with:
-* `seed` - it may just so happen that I've chosen a bad one (RL is very sensitive)
-* `learning_rate` - DQN originally used RMSProp, I saw that Adam with 1e-4 worked for stable baselines 3
-* `grad_clipping_value` - there was [a lot of noise](#visualization-tools) in the gradients so I used this to control it
+* `--seed` - it may just so happen that I've chosen a bad one (RL is very sensitive)
+* `--learning_rate` - DQN originally used RMSProp, I saw that Adam with 1e-4 worked for stable baselines 3
+* `--grad_clipping_value` - there was [a lot of noise](#visualization-tools) in the gradients so I used this to control it
 * Try using RMSProp (I haven't yet). Adam was an improvement over RMSProp so I doubt it's causing the issues
 
 Less important settings for getting DQN to work:
-* `env_id` - depending on which game you want to train on (I'd focus on the easiest one for now - Breakout)
-* `replay_buffer_size` - hopefully you can train DQN with 1M, as in the original paper, if not make it smaller
-* `crash_if_no_mem` - set to `False` if you want to run with 1M replay buffer even if you don't have enough RAM
+* `--env_id` - depending on which game you want to train on (I'd focus on the easiest one for now - Breakout)
+* `--replay_buffer_size` - hopefully you can train DQN with 1M, as in the original paper, if not make it smaller
+* `--dont_crash_if_no_mem` - add this flag if you want to run with 1M replay buffer even if you don't have enough RAM
 
 The training script will:
 * Dump checkpoint *.pth models into `models/checkpoints/`
-* Dump the final *.pth model into `models/binaries/` <- TODO
-* Save metrics into `runs/`, just run `tensorboard --logdir=runs` from your Anaconda to visualize it
+* Dump the best (highest reward) *.pth model into `models/binaries/` <- TODO
 * Periodically write some training metadata to the console
+* Save tensorboard metrics into `runs/`, to use it check out [the visualization section](#visualization-tools)
 
-## Visualization tools
+## Visualization and debugging tools
 
 You can visualize the metrics during the training, by calling `tensorboard --logdir=runs` from your console
-and pasting the `http://localhost:6006/` URL into your browser:
+and pasting the `http://localhost:6006/` URL into your browser.
+
+---
+
+To enter the debug mode add the `--debug` flag to your console or IDE's list of script arguments.
+
+It'll visualize the current state that's being fed into the RL agent. 
+Sometimes the state will have some black frames prepended since there aren't enough frames experienced in the current episode,
+but mostly all of the 4 frames will be in there:
+
+<p align="center">
+<img src="data/readme_visualizations/state_initial.PNG"/>
+
+<img src="data/readme_visualizations/state_all_frames.PNG"/>
+</p>
+
+And it will start rendering the game frames (`Pong` and `Breakout` showed here from left to right):
+
+<p align="left">
+<img src="data/readme_visualizations/pong.jpg" width="240"/>
+<img src="data/readme_visualizations/breakout.jpg" width="240"/>
+</p>
 
 ## Hardware requirements
 
@@ -136,7 +159,7 @@ With 16 GB RAM and RTX 2080 it takes ~5 days to train DQN on my machine - I'm **
 haven't debugged yet. Here is the FPS (frames-per-second) metric I'm logging:
 
 <p align="center">
-<img src="data/metrics/fps_metric.PNG"/>
+<img src="data/readme_visualizations/fps_metric.PNG"/>
 </p>
 
 The shorter, green one is the current experiment I'm running, the red one took over 5 days to train.

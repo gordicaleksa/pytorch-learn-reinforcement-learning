@@ -36,6 +36,8 @@ if __name__ == '__main__':
     # Step 2: Prepare the DQN model
     model_path = os.path.join(BINARIES_PATH, model_name)
     model_state = torch.load(model_path)
+    assert model_state['env_id'] == env_id, \
+        f"Model {model_name} was trained on {model_state['env_id']} but you're running it on {env_id}."
     utils.print_model_metadata(model_state)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

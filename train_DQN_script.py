@@ -194,7 +194,7 @@ class ActorLearner:
 
 def train_dqn(config):
     env = utils.get_env_wrapper(config['env_id'])
-    replay_buffer = ReplayBuffer(config['replay_buffer_size'], crash_if_no_mem=config['crash_if_no_mem'])
+    replay_buffer = ReplayBuffer(config['replay_buffer_size'], crash_if_no_mem=config['dont_crash_if_no_mem'])
 
     utils.set_random_seeds(env, config['seed'])
 
@@ -236,7 +236,7 @@ def get_training_args():
     parser.add_argument("--grad_clipping_value", type=float, default=5)  # 5 is fairly arbitrarily chosen
 
     parser.add_argument("--replay_buffer_size", type=int, help="Number of frames to store in buffer", default=1000000)
-    parser.add_argument("--crash_if_no_mem", type=bool, help="Optimization - crash if not enough RAM before the training even starts", default=True)
+    parser.add_argument("--dont_crash_if_no_mem", action='store_false', help="Optimization - crash if not enough RAM before the training even starts (default=True)")
     parser.add_argument("--num_warmup_steps", type=int, help="Number of steps before learning starts", default=50000)
     parser.add_argument("--target_dqn_update_interval", type=int, help="Target DQN update freq per learning update", default=10000)
 
