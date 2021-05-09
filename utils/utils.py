@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 
 import torch
@@ -8,6 +9,9 @@ import gym
 import numpy as np
 from stable_baselines3.common.atari_wrappers import AtariWrapper
 from gym.wrappers import Monitor
+
+
+from .constants import *
 
 
 def get_env_wrapper(env_id, record_video=False):
@@ -91,6 +95,24 @@ def get_training_state(training_config, model):
     }
 
     return training_state
+
+
+def get_available_binary_name(env_id='env_unknown'):
+    prefix = f'dqn_{env_id}'
+
+    def valid_binary_name(binary_name):
+        # First time you see raw f-string? Don't worry the only trick is to double the brackets.
+        pattern = re.compile(rf'{prefix}_[0-9]{{6}}\.pth')
+        return re.fullmatch(pattern, binary_name) is not None
+
+    # Just list the existing binaries so that we don't overwrite them but write to a new one
+    valid_binary_names = list(filter(valid_binary_name, os.listdir(BINARIES_PATH)))
+    if len(valid_binary_names) > 0:
+        last_binary_name = sorted(valid_binary_names)[-1]
+        new_suffix = int(last_binary_name.split('.')[0][-6:]) + 1  # increment by 1
+        return f'{prefix}_{str(new_suffix).zfill(6)}.pth'
+    else:
+        return f'{prefix}_000000.pth'
 
 
 def set_random_seeds(env, seed):

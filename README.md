@@ -41,7 +41,7 @@ The same architecture was used for all of the 49 games - although the model has 
 
 ## DQN current results
 
-Since it takes [lots of compute and time](#hardware-requirements) to train all of the 49 models I'll consider this DQN project completed once
+Since it takes [lots of compute and time](#hardware-requirements) to train all of the 49 models I'll consider the DQN project completed once
 I succeed in achieving the published results on:
 * Breakout
 * Pong
@@ -131,7 +131,7 @@ and pasting the `http://localhost:6006/` URL into your browser.
 I'm currently visualizing the [Huber loss](https://en.wikipedia.org/wiki/Huber_loss) (and you can see there is something weird going on):
 
 <p align="center">
-<img src="data/readme_visualizations/huber_loss.PNG" width="500"/>
+<img src="data/readme_visualizations/huber_loss.PNG" width="400"/>
 </p>
 
 Rewards and steps taken per episode (there is a fair bit of correlation between these 2):
@@ -149,7 +149,7 @@ And gradient L2 norms of weights and biases of every CNN/FC layer as well as the
 
 As well as epsilon (from the epsilon-greedy algorithm) but that plot is not that informative so I'll omit it here.
 
-As you can see the plots are super **noisy**!, as I could have expected, but the progress just stagnates from certain point onwards
+As you can see the plots are super **noisy**! As I could have expected, but the progress just stagnates from certain point onwards
 and that's what I'm trying to debug atm.
 
 ---

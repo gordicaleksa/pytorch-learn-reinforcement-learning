@@ -13,6 +13,7 @@
 import os
 import argparse
 import time
+import copy
 
 
 import numpy as np
@@ -53,6 +54,7 @@ class ActorLearner:
         self.tensorboard_writer = SummaryWriter()
         self.huber_loss = []
         self.best_episode_reward = -np.inf
+        self.best_dqn_model = None  # keeps a deep copy of the best DQN model so far (best = highest episode reward)
 
         # MSE/L2 between [-1,1] and L1 otherwise (as stated in the Nature paper) aka "Huber loss"
         self.loss = nn.SmoothL1Loss()
@@ -156,8 +158,10 @@ class ActorLearner:
             self.tensorboard_writer.add_scalar('Rewards per episode', rewards[-1], num_episodes)
             self.tensorboard_writer.add_scalar('Steps per episode', episode_lengths[-1], num_episodes)
 
-            self.best_episode_reward = max(self.best_episode_reward, rewards[-1])
-            self.config['best_episode_reward'] = self.best_episode_reward
+        if rewards[-1] > self.best_episode_reward:
+            self.best_episode_reward = rewards[-1]
+            self.config['best_episode_reward'] = self.best_episode_reward  # metadata
+            self.best_dqn_model = copy.deepcopy(self.dqn)  # keep track of the model that gave the best reward
 
     def maybe_log(self):
         num_steps = self.env.get_total_steps()
@@ -222,6 +226,11 @@ def train_dqn(config):
 
         if num_env_steps > config['num_warmup_steps']:
             actor_learner.learn_from_experience()
+
+    torch.save(  # save the best DQN model overall (gave the highest reward in an episode)
+        utils.get_training_state(config, actor_learner.best_dqn_model),
+        os.path.join(BINARIES_PATH, utils.get_available_binary_name(config['env_id']))
+    )
 
 
 def get_training_args():
