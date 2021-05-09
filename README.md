@@ -128,17 +128,41 @@ The training script will:
 You can visualize the metrics during the training, by calling `tensorboard --logdir=runs` from your console
 and pasting the `http://localhost:6006/` URL into your browser.
 
+I'm currently visualizing the [Huber loss](https://en.wikipedia.org/wiki/Huber_loss) (and you can see there is something weird going on):
+
+<p align="center">
+<img src="data/readme_visualizations/huber_loss.PNG" width="500"/>
+</p>
+
+Rewards and steps taken per episode (there is a fair bit of correlation between these 2):
+
+<p align="left">
+<img src="data/readme_visualizations/rewards_per_episode.PNG" width="400"/>
+<img src="data/readme_visualizations/steps_per_episode.PNG" width="400"/>
+</p>
+
+And gradient L2 norms of weights and biases of every CNN/FC layer as well as the complete grad vector:
+
+<p align="center">
+<img src="data/readme_visualizations/grads.PNG" width="850"/>
+</p>
+
+As well as epsilon (from the epsilon-greedy algorithm) but that plot is not that informative so I'll omit it here.
+
 ---
 
 To enter the debug mode add the `--debug` flag to your console or IDE's list of script arguments.
 
 It'll visualize the current state that's being fed into the RL agent. 
-Sometimes the state will have some black frames prepended since there aren't enough frames experienced in the current episode,
-but mostly all of the 4 frames will be in there:
+Sometimes the state will have some black frames prepended since there aren't enough frames experienced in the current episode:
 
 <p align="center">
 <img src="data/readme_visualizations/state_initial.PNG"/>
+</p>
 
+But mostly all of the 4 frames will be in there:
+
+<p align="center">
 <img src="data/readme_visualizations/state_all_frames.PNG"/>
 </p>
 
