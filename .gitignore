@@ -14,3 +14,7 @@ data/
 
 # Tensorboard dump dir
 runs/
+runs_baseline/
+
+# OpenAI gym Monitor's video dump location
+gym_monitor/

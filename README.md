@@ -149,6 +149,9 @@ And gradient L2 norms of weights and biases of every CNN/FC layer as well as the
 
 As well as epsilon (from the epsilon-greedy algorithm) but that plot is not that informative so I'll omit it here.
 
+As you can see the plots are super **noisy**!, as I could have expected, but the progress just stagnates from certain point onwards
+and that's what I'm trying to debug atm.
+
 ---
 
 To enter the debug mode add the `--debug` flag to your console or IDE's list of script arguments.
